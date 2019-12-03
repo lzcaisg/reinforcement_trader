@@ -4,11 +4,36 @@ from MongoDBUtils import *
 
 def getOneDayRecord(date, col_name="S&P500"):
     client, db, collection = setUpMongoDB(col_name=col_name)
-    myquery = {"Date": date}
-    mydoc = collection.find_one(myquery)
-    return mydoc
+    query = {"Date": date}
+    result = collection.find_one(query)
+    client.close()
+    return result
 
-# date = datetime.datetime(2019, 10, 10)
-# getOneDayRecord(date)
+
+def getRecordFromList(dateList, col_name="S&P500"):
+    client, db, collection = setUpMongoDB(col_name=col_name)
+    resultList = []
+    for date in dateList:
+        query = {"Date": date}
+        result = collection.find_one(query)
+        if result:
+            resultList.append(result)
+    client.close()
+    return resultList
+
+
+def getRecordFromStartEnd(startDate, endDate, col_name="S&P500"):
+    client, db, collection = setUpMongoDB(col_name=col_name)
+    resultList = []
+    date = startDate
+    while date <= endDate:
+        query = {"Date": date}
+        result = collection.find_one(query)
+        if result:
+            resultList.append(result)
+        date += datetime.timedelta(days=1)
+    return resultList
+
+
 
 
