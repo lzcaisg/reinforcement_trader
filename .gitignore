@@ -1,3 +1,6 @@
 
 venv/
 .idea/
+.idea/misc.xml
+.idea/code.iml
+.idea/workspace.xml
