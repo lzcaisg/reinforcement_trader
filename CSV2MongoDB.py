@@ -39,7 +39,7 @@ def percent2float(percentStr):
     return float(percentStr[:-1]) / 100
 
 
-def csv2db(csv_path, csv_name):
+def csv2db(csv_path, csv_name, etf_name):
     # ====== 1. Initial Settings ======
     # csv_path = "../index/2014-2019"
     # # file_path = ".."  # For PC
@@ -78,18 +78,19 @@ def csv2db(csv_path, csv_name):
     # db = client[db_name]
     # collection = db[col_name]
 
-    client, db, collection = setUpMongoDB()
+    client, db, collection = setUpMongoDB(col_name=etf_name)
 
     # use collection_currency.insert(file_data) if pymongo version < 3.0
     n = len(json_list)
     for i, item in enumerate(json_list):
         collection.insert_one(item)
-        sys.stdout.write("Progress: Pushing to Database:\r{0}%".format((float(i) / n) * 100))
+        sys.stdout.write("\r{0}%".format((float(i) / n) * 100))
         sys.stdout.flush()
     client.close()
 
 
-# csv_path = "../index/2014-2019"
-csv_path = "."  # For PC
-csv_name = "S&P 500 Historical Data.csv"
-csv2db(csv_path, csv_name)
+csv_path = "../index/2014-2019"
+# csv_path = "."  # For PC
+etf_name = "Taiwan Weighted"
+csv_name = etf_name+" Historical Data.csv"
+csv2db(csv_path, csv_name, etf_name)
