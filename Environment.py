@@ -8,7 +8,7 @@ from scipy.optimize import fsolve
 TRADING_FEE = 0.008
 
 
-def getOneDayRecord(date, col_name="S&P 500"):
+def getOneRecord(date, col_name="S&P 500"):
     client, db, collection = setUpMongoDB(col_name=col_name)
     query = {"Date": date}
     result = collection.find_one(query)
@@ -16,7 +16,66 @@ def getOneDayRecord(date, col_name="S&P 500"):
     return result
 
 
-def getRecordFromETFList(date, etfList):
+def getRecordFromDateList(dateList, col_name="S&P 500"):
+    client, db, collection = setUpMongoDB(col_name=col_name)
+    resultList = []
+    for date in dateList:
+        query = {"Date": date}
+        result = collection.find_one(query)
+        if result:
+            resultList.append(result)
+    client.close()
+    return resultList
+
+
+def getRecordFromStartLength(startDate, length, col_name="S&P 500"):
+    client, db, collection = setUpMongoDB(col_name=col_name)
+    resultList = []
+    for i in range(length):
+        query = {"Date": startDate + datetime.timedelta(days=i)}
+        result = collection.find_one(query)
+        if result:
+            resultList.append(result)
+    return resultList
+
+
+def getRecordFromStartLengthByETFList(startDate, length, etfList):
+    '''
+
+    :param startDate:
+    :param length:
+    :param etfList: ["S&P 500", "DAX"]
+    :return: A Dict
+        {
+        "S&P 500": [{one record}, {another record}],
+        "DAX":[{...}, {...}],
+        ...}
+    '''
+    if not isinstance(etfList, list):
+        warnings.warn("Environment/getRecordFromStartLengthByETFList() Warning: etfList is not List")
+        return None
+    client, db, _ = setUpMongoDB()
+
+    resultDict = {}
+
+    for etf in etfList:
+        if etf == "CASH":
+            continue
+        else:
+            etfRecordList = []
+            collection = db[etf]
+            for i in range(length):
+                query = {"Date": startDate + datetime.timedelta(days=i)}
+                result = collection.find_one(query)
+                if result:
+                    etfRecordList.append(result)
+            resultDict[etf] = etfRecordList
+
+    client.close()
+    return resultDict
+
+
+def getPriceByETFList(date, etfList):  # Get PRICE only! Not the full record
     '''
 
     :param date:
@@ -53,32 +112,7 @@ def getRecordFromETFList(date, etfList):
     return resultDF
 
 
-# def getRecordFromDateList(dateList, col_name="S&P 500"):
-#     client, db, collection = setUpMongoDB(col_name=col_name)
-#     resultList = []
-#     for date in dateList:
-#         query = {"Date": date}
-#         result = collection.find_one(query)
-#         if result:
-#             resultList.append(result)
-#     client.close()
-#     return resultList
-#
-#
-# def getRecordFromStartEnd(startDate, endDate, col_name="S&P 500"):
-#     client, db, collection = setUpMongoDB(col_name=col_name)
-#     resultList = []
-#     date = startDate
-#     while date <= endDate:
-#         query = {"Date": date}
-#         result = collection.find_one(query)
-#         if result:
-#             resultList.append(result)
-#         date += datetime.timedelta(days=1)
-#     return resultList
-
-
-def reallocateAndGetAbsoluteReward(oldPortfolio, newPortfolio):
+def reallocateAndGetAbsoluteReward(self, oldPortfolio, newPortfolio):
     '''
     oldPortfolio: {
         "portfolioDict": {"S&P 500": 0.3, "Hang Seng":0.5} -> 0.2 Cash
@@ -139,7 +173,8 @@ def reallocateAndGetAbsoluteReward(oldPortfolio, newPortfolio):
     newRatio_df = newRatio_df.append(pd.DataFrame(index=['CASH'], data={'ratio': np.nan}))
 
     if oldRatio_df['ratio'].sum() > 1:
-        warnings.warn("Environment/calculateAbsoluteReward() Warning: oldRatio_df['ratio'].sum() > 1, Auto-Normalized")
+        warnings.warn(
+            "Environment/calculateAbsoluteReward() Warning: oldRatio_df['ratio'].sum() > 1, Auto-Normalized")
         oldRatio_df = oldRatio_df / oldRatio_df['ratio'].sum()
 
     elif oldRatio_df['ratio'].sum() < 1:
@@ -161,8 +196,8 @@ def reallocateAndGetAbsoluteReward(oldPortfolio, newPortfolio):
     portfolio_df['oldPastValue'] = portfolio_df.apply(lambda row: row.oldRatio * oldPortfolio['value'], axis=1)
 
     etfList = list(portfolio_df.index)
-    portfolio_df['oldPrice'] = getRecordFromETFList(oldPortfolio['date'], etfList)
-    portfolio_df['newPrice'] = getRecordFromETFList(newPortfolio['date'], etfList)
+    portfolio_df['oldPrice'] = getPriceByETFList(oldPortfolio['date'], etfList)
+    portfolio_df['newPrice'] = getPriceByETFList(newPortfolio['date'], etfList)
     portfolio_df['oldStockHeld'] = portfolio_df['oldPastValue'].div(portfolio_df['oldPrice'].values)
     portfolio_df['oldCurrentValue'] = portfolio_df['oldStockHeld'].mul(portfolio_df['newPrice'].values)
     portfolio_df['oldCurrentRatio'] = portfolio_df['oldCurrentValue'] / portfolio_df['oldCurrentValue'].sum()
@@ -192,6 +227,6 @@ def reallocateAndGetAbsoluteReward(oldPortfolio, newPortfolio):
     return {
         "oldPastValue": oldPastValueSum,
         "newCurrentValue": newCurrentValueSum,
-        "deltaValue": newCurrentValueSum-oldPastValueSum,
+        "deltaValue": newCurrentValueSum - oldPastValueSum,
         "portfolio_df": portfolio_df
     }

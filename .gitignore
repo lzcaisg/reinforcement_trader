@@ -8,3 +8,6 @@ __pycache__/
 .idea/workspace.xml
 __pycache__/Environment.cpython-37.pyc
 __pycache__/MongoDBUtils.cpython-37.pyc
+.idea/workspace.xml
+__pycache__/Environment.cpython-37.pyc
+__pycache__/MongoDBUtils.cpython-37.pyc
