@@ -9,40 +9,58 @@ class Actor:
     SMALL_WINDOW = 30
     MIN_WINDOW = 7
     TOP_PERCENTILE = 10
-    initialWindowDict = {}
+    initialWindow_dictList = {}
     etfBaseValueDict = {}
-    etfNormalizedDict = {}
+    etfNormalized_dfDict = {}
     etfLocalMinMaxDict = {}
+    todayDate = None
 
 
-    def __init__(self, startDate, etfList, initValue=1000000):
+    def __init__(self, todayDate, startDate, etfList, initValue=1000000):
         '''
+        :param todayDate: If todayDate <= startDate + 180d, go back from todayDate; otherwase go forward from startDate
         :param etflist: A list string representing ETF names, should be listed in the DB
         :param initValue: The initial amount of money, by default 1M
         '''
 
+        # In any cases, we shouldn't know today's value:
+        # Therefore, if there is any record goes beyond today, we should delete it
+
         # 1. Get the MAX_WINDOW day window (e.g. The first 180 day window)
-        self.initialWindowDict = getRecordFromStartLengthByETFList(startDate, self.MAX_WINDOW,
-                                                                   etfList)  # Already Sorted
+        self.todayDate = todayDate
+        self.initialWindow_dictList = getRecordFromStartLengthByETFList(todayDate, startDate, self.MAX_WINDOW,
+                                                                        etfList)  # Already Sorted
         '''
         initialWindowDict: {"S&P 500":[{__Record__}, {__Record__}, ...]}
         where Record: {"_id", "Date", "Price", "Open", "High", "Low", "Vol", "Change"}
         '''
 
         # 2. Get the first date
-        for etf in etfList:
-            self.etfBaseValueDict[etf] = self.initialWindowDict[etf][0]['Price']
+        try:
+            for etf in etfList:
+                self.etfBaseValueDict[etf] = self.initialWindow_dictList[etf][0]['Price']
+        except Exception as e: # If there is no value returned; e,g, todayDate < StartDate
+            self.etfBaseValueDict[etf] = {}
+            print("Error in Actor.etfBaseValueDict: When visiting self.initialWindowDict[etf][0]['Price'],", e)
 
         # 3. Normalize the record by the first date and store in DFs
-        for etf in etfList:
-            baseValue = self.etfBaseValueDict[etf]
-            self.etfNormalizedDict[etf] = pd.DataFrame(self.initialWindowDict[etf])
 
-            df = self.etfNormalizedDict[etf]
-            df['Price'] /= baseValue
-            df['Open'] /= baseValue
-            df['High'] /= baseValue
-            df['Low'] /= baseValue
+        for etf in etfList:
+            try:
+                baseValue = self.etfBaseValueDict[etf]
+                self.etfNormalized_dfDict[etf] = pd.DataFrame(self.initialWindow_dictList[etf])
+
+                df = self.etfNormalized_dfDict[etf]
+                df['Price'] /= baseValue
+                df['Open'] /= baseValue
+                df['High'] /= baseValue
+                df['Low'] /= baseValue
+            except Exception as e:  # If there is no value returned; e,g, todayDate < StartDate
+                df['Price'] = np.nan
+                df['Open'] = np.nan
+                df['High'] = np.nan
+                df['Low'] = np.nan
+                print("Error in Actor.etfNormalizedDict: When visiting self.etfBaseValueDict[etf],", e)
 
         # 4. Find 30, 60, 90, 180 Local Minima and Maxima (Top a% Percentile)
         '''
@@ -53,17 +71,26 @@ class Actor:
         59  5de87f143b02dbc0c223fe8c 2015-12-02  1.043068  1.038962  1.047359  1.038888  583610000  0.0040
         32  5de87f153b02dbc0c223fea7 2015-10-26  1.042433  1.046829  1.048278  1.040542  454680000 -0.0042
         21  5de87f153b02dbc0c223feb2 2015-10-09  1.042293  1.035578  1.048314  1.035578  768200000  0.0065        
-'''
+        '''
         for etf in etfList:
             self.etfLocalMinMaxDict[etf] = {}
             self.etfLocalMinMaxDict[etf]['max'] = {}
             self.etfLocalMinMaxDict[etf]['min'] = {}
+            try:
+                df = self.etfNormalized_dfDict[etf]
+                lastDate = np.datetime64(df['Date'].iloc[-1], 'ns')
+                for timeRange in [self.MAX_WINDOW, self.LARGE_WINDOW, self.MID_WINDOW, self.SMALL_WINDOW]:
+                    mask = (df['Date'] <= lastDate) & (df['Date'] >= lastDate - np.timedelta64(timeRange, 'D'))
+                    nSample = int(df.loc[mask].shape[0] * self.TOP_PERCENTILE / 100) + 1  #nSample: lenth of the minmax DF
 
-            df = self.etfNormalizedDict[etf]
-            lastDate = np.datetime64(df['Date'].iloc[-1], 'ns')
-            for timeRange in [self.MAX_WINDOW, self.LARGE_WINDOW, self.MID_WINDOW, self.SMALL_WINDOW]:
-                mask = (df['Date'] <= lastDate) & (df['Date'] >= lastDate - np.timedelta64(timeRange, 'D'))
-                # lenth of the nMax DF
-                nSample = int(df.loc[mask].shape[0] * self.TOP_PERCENTILE / 100) + 1
-                self.etfLocalMinMaxDict[etf]['max'][str(timeRange)] = df.loc[mask].nlargest(nSample, 'Price')
-                self.etfLocalMinMaxDict[etf]['min'][str(timeRange)] = df.loc[mask].nsmallest(nSample, 'Price')
+                    self.etfLocalMinMaxDict[etf]['max'][str(timeRange)] = df.loc[mask].nlargest(nSample, 'Price')
+                    self.etfLocalMinMaxDict[etf]['min'][str(timeRange)] = df.loc[mask].nsmallest(nSample, 'Price')
+
+            except Exception as e:  # If there is no value returned; e,g, todayDate < StartDate
+                for timeRange in [self.MAX_WINDOW, self.LARGE_WINDOW, self.MID_WINDOW, self.SMALL_WINDOW]:
+                    self.etfLocalMinMaxDict[etf]['max'][str(timeRange)] = None
+                    self.etfLocalMinMaxDict[etf]['min'][str(timeRange)] = None
+                print("Error in Actor.etfLocalMinMaxDict: When visiting self.etfNormalizedDict[etf],", e)
+
+    def predrict(self, endDate): # Start Predicting from todayDate to endDate
+        pass

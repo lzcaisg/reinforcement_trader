@@ -2,9 +2,8 @@ import datetime
 from Environment import *
 import torch
 
-# # Test getOneDayRecord()
-# date = datetime.datetime(2019, 10, 10)
-# print(getOneDayRecord(date))
+# Test getOneDayRecord()
+# print(getOneRecord(datetime.datetime(2020, 10, 10), datetime.datetime(2019, 9, 10)))
 
 # # Test getRecordFromList()
 # # dateList = []
@@ -38,6 +37,12 @@ import torch
 
 
 # Test getRecordFromStartEnd()
-startDate = datetime.datetime(2019, 9, 10)
+# startDate = datetime.datetime(2019, 9, 10)
+#
+# print(getRecordFromStartLengthByETFList(startDate, 3, ["S&P 500", "Taiwan Weighted"]))
 
-print(getRecordFromStartLengthByETFList(startDate, 3, ["S&P 500", "Taiwan Weighted"]))
+
+# Test getFuturePercentile()
+startDate = datetime.datetime(2018, 9, 10)
+
+print(getFuturePercentile(startDate, 180))

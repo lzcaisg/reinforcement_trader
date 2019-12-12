@@ -6,9 +6,31 @@ from MongoDBUtils import *
 from scipy.optimize import fsolve
 
 TRADING_FEE = 0.008
+# In any cases, we shouldn't know today's and future value;
+# ONLY PROVIDE CALCULATED RESULT
+# Handled by Both Environment and Actors
 
 
-def getOneRecord(date, col_name="S&P 500"):
+def getOneRecord(todayDate, date, col_name="S&P 500"):
+    '''
+
+    :param todayDate:
+    :param date:
+    :param col_name:
+    :return: e.g.
+        {
+            '_id': ObjectId('5de7325e05597fc4f7b09fad'),
+            'Date': datetime.datetime(2019, 9, 10, 0, 0),
+            'Price': 2979.39, 'Open': 2971.01,
+            'High': 2979.39,
+            'Low': 2957.01,
+            'Vol': 0,
+            'Change': 0.0003
+        }
+
+    '''
+    if date >= todayDate:
+        return
     client, db, collection = setUpMongoDB(col_name=col_name)
     query = {"Date": date}
     result = collection.find_one(query)
@@ -16,10 +38,12 @@ def getOneRecord(date, col_name="S&P 500"):
     return result
 
 
-def getRecordFromDateList(dateList, col_name="S&P 500"):
+def getRecordFromDateList(todayDate, dateList, col_name="S&P 500"):
     client, db, collection = setUpMongoDB(col_name=col_name)
     resultList = []
     for date in dateList:
+        if date >= todayDate:
+            continue
         query = {"Date": date}
         result = collection.find_one(query)
         if result:
@@ -28,18 +52,21 @@ def getRecordFromDateList(dateList, col_name="S&P 500"):
     return resultList
 
 
-def getRecordFromStartLength(startDate, length, col_name="S&P 500"):
+def getRecordFromStartLength(todayDate, startDate, length, col_name="S&P 500"): # Return Sorted List of Dict
     client, db, collection = setUpMongoDB(col_name=col_name)
     resultList = []
     for i in range(length):
-        query = {"Date": startDate + datetime.timedelta(days=i)}
+        newDate = startDate + datetime.timedelta(days=i)
+        if newDate >= todayDate:
+            break
+        query = {"Date": newDate}
         result = collection.find_one(query)
         if result:
             resultList.append(result)
     return resultList
 
 
-def getRecordFromStartLengthByETFList(startDate, length, etfList):
+def getRecordFromStartLengthByETFList(todayDate, startDate, length, etfList):
     '''
 
     :param startDate:
@@ -65,7 +92,11 @@ def getRecordFromStartLengthByETFList(startDate, length, etfList):
             etfRecordList = []
             collection = db[etf]
             for i in range(length):
-                query = {"Date": startDate + datetime.timedelta(days=i)}
+                newDate = startDate + datetime.timedelta(days=i)
+                if newDate >= todayDate:
+                    break
+
+                query = {"Date": newDate}
                 result = collection.find_one(query)
                 if result:
                     etfRecordList.append(result)
@@ -75,7 +106,7 @@ def getRecordFromStartLengthByETFList(startDate, length, etfList):
     return resultDict
 
 
-def getPriceByETFList(date, etfList):  # Get PRICE only! Not the full record
+def getPriceByETFList(todayDate, date, etfList):  # Get PRICE only! Not the full record
     '''
 
     :param date:
@@ -104,6 +135,8 @@ def getPriceByETFList(date, etfList):  # Get PRICE only! Not the full record
             resultDF['Value'][etf] = 1
         else:
             collection = db[etf]
+            if date >= todayDate:
+                continue
             query = {"Date": date}
             result = collection.find_one(query)
             if result:
@@ -112,7 +145,7 @@ def getPriceByETFList(date, etfList):  # Get PRICE only! Not the full record
     return resultDF
 
 
-def reallocateAndGetAbsoluteReward(self, oldPortfolio, newPortfolio):
+def reallocateAndGetAbsoluteReward(oldPortfolio, newPortfolio):
     '''
     oldPortfolio: {
         "portfolioDict": {"S&P 500": 0.3, "Hang Seng":0.5} -> 0.2 Cash
@@ -230,3 +263,17 @@ def reallocateAndGetAbsoluteReward(self, oldPortfolio, newPortfolio):
         "deltaValue": newCurrentValueSum - oldPastValueSum,
         "portfolio_df": portfolio_df
     }
+
+
+def getFuturePercentile(todayDate, delta, col_name="S&P 500"): # Delta includes todayDate!
+    # 1. To get all future results ang calculate the percentile using getRecordFromStartLength
+    # Disable the today_check by passing real-world date
+    resultList = getRecordFromStartLength(datetime.datetime.now(), todayDate, delta, col_name=col_name)
+
+    # 2. Transform the resultList into dataframe
+
+    df = pd.DataFrame(resultList)
+    todayRank = df['Price'].rank(method = 'average')[0]  # The smaller the value, the smaller the rank
+    todayPercentile = (todayRank-1) / (df.shape[0]-1) # -1 to make it [0, 1], otherwise rank start with 1
+    # The greater the percentile, the worse the performance in the future
+    return todayPercentile
