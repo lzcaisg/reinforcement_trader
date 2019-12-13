@@ -22,3 +22,9 @@ and calculate the return after 7 days
 the actual value
 4. Calculate and store all the actual value beforehand, so that we can load
 the calculated result for training
+
+## Risks and Potential Issues
+1. The result is not significant. RL requires millions of training data
+2. The environment is not well-defined and the model found some shortcut
+3. The model is overfitting some pattern (e.g. S&P 500 is monotonously
+growing for 10 years)
