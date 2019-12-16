@@ -43,6 +43,8 @@ import torch
 
 
 # Test getFuturePercentile()
-startDate = datetime.datetime(2018, 9, 10)
+startDate = datetime.datetime(2020, 9, 10)
+env = Environment()
+# print(env.getFuturePercentile(startDate, 180))
 
-print(getFuturePercentile(startDate, 180))
+print(env.getRecordFromStartLengthByETFList(datetime.datetime.now(),startDate,1,["S&P 500"]))
