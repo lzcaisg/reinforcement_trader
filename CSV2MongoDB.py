@@ -91,6 +91,6 @@ def csv2db(csv_path, csv_name, etf_name):
 
 csv_path = "../index/2014-2019"
 # csv_path = "."  # For PC
-etf_name = "MSCI World"
+etf_name = "Bovespa"
 csv_name = etf_name+" Historical Data.csv"
 csv2db(csv_path, csv_name, etf_name)

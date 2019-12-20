@@ -11,11 +11,14 @@ MIN_WINDOW = 7
 
 env = Environment()
 currentDate = EARLIEST_DATE+datetime.timedelta(days=SMALL_WINDOW-1) # SMALL_WINDOW: 30 days
-etfList = ["S&P 500", "Shanghai Composite", "MOEX Russia"]
+etfList = ["S&P 500", "Shanghai Composite", "Bovespa", "DAX", "Nifty 50"]
 marketName = "MSCI World"
 
 def getBeta(etfName, marketName):
-    currentDate = EARLIEST_DATE + datetime.timedelta(days=SMALL_WINDOW - 1)  # SMALL_WINDOW: 30 days
+    smallestEtfDate = env.db[etfName].find_one(sort=[("Date", 1)])["Date"]
+    smallestMarketDate = env.db[marketName].find_one(sort=[("Date", 1)])["Date"]
+    earliestDate = max(smallestEtfDate,smallestMarketDate,EARLIEST_DATE)
+    currentDate = earliestDate + datetime.timedelta(days=SMALL_WINDOW - 1)  # SMALL_WINDOW: 30 days
     dbResult = env.getRecordFromEndLengthByETFList(
         todayDate=datetime.datetime.now(),
         endDate=currentDate,
