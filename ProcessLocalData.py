@@ -16,6 +16,7 @@ namelist_df = pd.read_csv(os.path.join(DIR_FILENAME, NAMELIST_FILENAME))
 # print([namelist_df['File Name'][0]])
 
 for etfName in namelist_df['File Name']:
+# for etfName in ['Bursatil']:
 # for etfName in [namelist_df['File Name'][0]]:
     print(etfName)
 
