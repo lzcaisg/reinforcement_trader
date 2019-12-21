@@ -28,3 +28,4 @@ the calculated result for training
 2. The environment is not well-defined and the model found some shortcut
 3. The model is overfitting some pattern (e.g. S&P 500 is monotonously
 growing for 10 years)
+ 
