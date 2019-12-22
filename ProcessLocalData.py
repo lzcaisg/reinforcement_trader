@@ -41,7 +41,8 @@ for etfName in namelist_df['File Name']:
         # print(priceArray)
         # print(1/priceArray)
         # print(np.outer(priceArray, 1/priceArray)[1])
-        resultMatrix = np.outer(priceArray, 1 / priceArray)[1]
+        resultMatrix = np.outer(priceArray, 1 / priceArray)
+        # print(resultMatrix)
         pickle.dump(resultMatrix, open(os.path.join("output", etfName + "_returnMatrix.out"), "wb"))
     except Exception as e:
         print(e)
