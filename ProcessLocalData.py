@@ -41,7 +41,27 @@ for etfName in namelist_df['File Name']:
         # print(priceArray)
         # print(1/priceArray)
         # print(np.outer(priceArray, 1/priceArray)[1])
-        resultMatrix = np.outer(priceArray, 1 / priceArray)
+        resultMatrix = np.outer(1/priceArray, priceArray)
+        '''
+        outer(a, b) = [
+            [a0*b0, a0*b1, ..., a0*bn],
+            [a1*b0, a1*b1, ..., a1*bn],
+            ...
+            [an*b0, an*b1, ..., an*bn]
+        ];
+        
+        Therefore, outer(1/p, p) = 
+        [
+            [p0/p0, p1/p0, ..., pn/p0],
+            [p0/p1, p1/p1, ..., pn/p1],
+            ...
+            [p0/pn, p1/pn, ..., pn/pn]
+        ]
+        
+        Therefore, the return for buying in at time t and sell at time s=t+n days will be 
+        (ps/pt) = result[t][s] = result[t][t+n]
+        
+        '''
         # print(resultMatrix)
         pickle.dump(resultMatrix, open(os.path.join("output", etfName + "_returnMatrix.out"), "wb"))
     except Exception as e:
@@ -67,4 +87,5 @@ for etfName in namelist_df['File Name']:
             print(etfName+" "+str(currentDay) + " finished.")
         counter += 1
     print(resultdf)
-    pickle.dump(resultdf, open(os.path.join("output", etfName+"_return.out"), "wb")) '''
+    pickle.dump(resultdf, open(os.path.join("output", etfName+"_return.out"), "wb")) 
+'''
