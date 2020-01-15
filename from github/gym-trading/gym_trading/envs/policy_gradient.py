@@ -101,7 +101,7 @@ class PolicyGradient(object) :
         self._sess.run(init_op)
         if load_model:
             ckpt = tf.train.get_checkpoint_state(model_dir)
-            print tf.train.latest_checkpoint(model_dir)
+            print (tf.train.latest_checkpoint(model_dir))
             if ckpt and ckpt.model_checkpoint_path:
                 savr = tf.train.import_meta_graph(ckpt.model_checkpoint_path+'.meta')
                 out = savr.restore(self._sess, ckpt.model_checkpoint_path)

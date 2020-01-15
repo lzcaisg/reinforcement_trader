@@ -26,8 +26,8 @@ for _ in range(Episodes):
         #print observation,reward,done,info
         count += 1
         if done:
-            print reward
-            print count
+            print (reward)
+            print (count)
         
 df = env.env.sim.to_df()
 
