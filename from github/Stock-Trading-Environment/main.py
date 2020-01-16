@@ -10,8 +10,15 @@ from env.StockTradingEnv import StockTradingEnv
 
 import pandas as pd
 
-df = pd.read_csv('./data/AAPL.csv')
+from CSVUtils import csv2df
+
+# df = pd.read_csv('./data/AAPL.csv')
+# df = pd.read_csv('../../input/2006-2019/S&P 500 Historical Data.csv')
+df = csv2df('../../input/2006-2019', 'S&P 500 Historical Data.csv')
+
 df = df.sort_values('Date')
+df = df.reset_index(drop=True)
+# print (df)
 
 # The algorithms require a vectorized environment to run
 env = DummyVecEnv([lambda: StockTradingEnv(df)])
