@@ -136,7 +136,10 @@ class StockTradingEnv(gym.Env):
 
         obs = self._next_observation()
 
-        return obs, reward, done, {}
+        profit = self.net_worth - INITIAL_ACCOUNT_BALANCE
+        info = {"profit": profit}
+
+        return obs, reward, done, info
 
     def reset(self):
         # Reset the state of the environment to an initial state
@@ -168,3 +171,7 @@ class StockTradingEnv(gym.Env):
         print(
             f'Net worth: {self.net_worth} (Max net worth: {self.max_net_worth})')
         print(f'Profit: {profit}')
+
+    
+    # def get_profit(self):
+    #     return self.net_worth - INITIAL_ACCOUNT_BALANCE
