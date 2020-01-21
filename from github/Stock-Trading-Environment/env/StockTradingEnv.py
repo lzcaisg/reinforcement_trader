@@ -137,7 +137,7 @@ class StockTradingEnv(gym.Env):
         obs = self._next_observation()
 
         profit = self.net_worth - INITIAL_ACCOUNT_BALANCE
-        info = {"profit": profit}
+        info = {"profit": profit, "total_shares_sold": self.total_shares_sold}
 
         return obs, reward, done, info
 
