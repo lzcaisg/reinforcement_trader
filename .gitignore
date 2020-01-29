@@ -17,4 +17,4 @@ __pycache__/MongoDBUtils.cpython-37.pyc
 __pycache__/Environment.cpython-37.pyc
 __pycache__/MongoDBUtils.cpython-37.pyc
 .DS_Store
-output/
+from github/Stock-Trading-Environment/graph/._.DS_Store
