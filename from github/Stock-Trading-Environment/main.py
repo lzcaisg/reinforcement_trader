@@ -56,7 +56,7 @@ for tstep in timestep_list:
             "final": profit_list[-1],
             "total_shares_sold": info[0]['total_shares_sold']
         })
-        pickle.dump(final_result, open("./output/4/sp500_train100000_test2000_repeat100_withsold_21JAN2020-9.out", "wb"))
+        pickle.dump(final_result, open("./output/5/sp500_train100000_test2000_repeat100_withsold_21JAN2020-9.out", "wb"))
         print (final_result)
 
         

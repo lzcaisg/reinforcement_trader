@@ -18,4 +18,6 @@ __pycache__/Environment.cpython-37.pyc
 __pycache__/MongoDBUtils.cpython-37.pyc
 .DS_Store
 from github/Stock-Trading-Environment/graph/._.DS_Store
-output_nogit/
+from output_nogit/
+from github/Stock-Trading-Environment/.vs/
+from github/Stock-Trading-Environment/.vscode/
