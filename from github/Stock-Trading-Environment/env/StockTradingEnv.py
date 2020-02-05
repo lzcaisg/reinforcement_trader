@@ -19,10 +19,12 @@ class StockTradingEnv(gym.Env):
     """A stock trading environment for OpenAI gym"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, df):
+    def __init__(self, df, training=True):
         super(StockTradingEnv, self).__init__()
 
-        self.df = df
+        self.training = training
+
+        self.df = df.reset_index(drop=True)
         self.reward_range = (0, MAX_ACCOUNT_BALANCE)
 
         # Actions of the format Buy x%, Sell x%, Hold, etc.
@@ -115,9 +117,15 @@ class StockTradingEnv(gym.Env):
         self._take_action(action)
 
         self.current_step += 1
-
+        finished = False
+        
         if self.current_step > len(self.df.loc[:, 'Open'].values) - 6:
-            self.current_step = 0  # Going back to time 0
+            # if self.training:
+            if self.training:
+                self.current_step = 0  # Going back to time 0
+            else:
+                self.current_step -= 1
+                finished = True
 
         '''
         We want to incentivize profit that is sustained over long periods of time. 
@@ -132,7 +140,7 @@ class StockTradingEnv(gym.Env):
         delay_modifier = (self.current_step / MAX_STEPS)
 
         reward = self.balance * delay_modifier
-        done = self.net_worth <= 0
+        done = (self.net_worth <= 0) or finished
 
         obs = self._next_observation()
 
@@ -153,8 +161,11 @@ class StockTradingEnv(gym.Env):
 
         # Set the current step to a random point within the data frame
         # We set the current step to a random point within the data frame, because it essentially gives our agent’s more unique experiences from the same data set.
-        self.current_step = random.randint(
-            0, len(self.df.loc[:, 'Open'].values) - 6)
+        if self.training:
+            self.current_step = random.randint(
+                0, len(self.df.loc[:, 'Open'].values) - 6)
+        else:
+            self.current_step = 0
 
         return self._next_observation()
 
@@ -172,6 +183,3 @@ class StockTradingEnv(gym.Env):
             f'Net worth: {self.net_worth} (Max net worth: {self.max_net_worth})')
         print(f'Profit: {profit}')
 
-    
-    # def get_profit(self):
-    #     return self.net_worth - INITIAL_ACCOUNT_BALANCE
