@@ -23,6 +23,7 @@ class StockTradingEnv(gym.Env):
         super(StockTradingEnv, self).__init__()
 
         self.training = training
+        self.window_size = 5
 
         self.df = df.reset_index(drop=True)
         self.reward_range = (0, MAX_ACCOUNT_BALANCE)
@@ -44,16 +45,16 @@ class StockTradingEnv(gym.Env):
         # self.current_step is defined in reset method, and is a rendom time point within the frame
 
         frame = np.array([
-            self.df.loc[self.current_step: self.current_step +
-                        5, 'Open'].values / MAX_SHARE_PRICE,
-            self.df.loc[self.current_step: self.current_step +
-                        5, 'High'].values / MAX_SHARE_PRICE,
-            self.df.loc[self.current_step: self.current_step +
-                        5, 'Low'].values / MAX_SHARE_PRICE,
-            self.df.loc[self.current_step: self.current_step +
-                        5, 'Price'].values / MAX_SHARE_PRICE,
-            self.df.loc[self.current_step: self.current_step +
-                        5, 'Vol'].values / MAX_NUM_SHARES,
+            self.df.loc[self.current_step-self.window_size : self.current_step,
+                'Open'].values / MAX_SHARE_PRICE,
+            self.df.loc[self.current_step-self.window_size : self.current_step, 
+                'High'].values / MAX_SHARE_PRICE,
+            self.df.loc[self.current_step-self.window_size : self.current_step, 
+                'Low'].values / MAX_SHARE_PRICE,
+            self.df.loc[self.current_step-self.window_size : self.current_step, 
+                'Price'].values / MAX_SHARE_PRICE,
+            self.df.loc[self.current_step-self.window_size : self.current_step, 
+                'Vol'].values / MAX_NUM_SHARES,
         ])
 
 
@@ -119,10 +120,10 @@ class StockTradingEnv(gym.Env):
         self.current_step += 1
         finished = False
         
-        if self.current_step > len(self.df.loc[:, 'Open'].values) - 6:
+        if self.current_step > len(self.df.loc[:, 'Open'].values) - 1:
             # if self.training:
             if self.training:
-                self.current_step = 0  # Going back to time 0
+                self.current_step = self.window_size  # Going back to time 0
             else:
                 self.current_step -= 1
                 finished = True
@@ -137,15 +138,18 @@ class StockTradingEnv(gym.Env):
         It will also reward agents that maintain a higher balance for longer, 
         rather than those who rapidly gain money using unsustainable strategies.
         '''
+        self.init_buyNhold_balance = self.init_buyNhold_amount * self.df.loc[self.current_step, "Price"]
+        profit = self.net_worth - INITIAL_ACCOUNT_BALANCE
+        actual_profit = self.net_worth - self.init_buyNhold_balance
+        
         delay_modifier = (self.current_step / MAX_STEPS)
+        # reward = self.balance * delay_modifier  # Original Version
+        reward = actual_profit * delay_modifier  # Use Actual Net Profit
 
-        reward = self.balance * delay_modifier
         done = (self.net_worth <= 0) or finished
-
         obs = self._next_observation()
 
-        profit = self.net_worth - INITIAL_ACCOUNT_BALANCE
-        info = {"profit": profit, "total_shares_sold": self.total_shares_sold}
+        info = {"profit": profit, "total_shares_sold": self.total_shares_sold, "actual_profit": actual_profit}
 
         return obs, reward, done, info
 
@@ -158,14 +162,18 @@ class StockTradingEnv(gym.Env):
         self.cost_basis = 0
         self.total_shares_sold = 0
         self.total_sales_value = 0
+        
 
         # Set the current step to a random point within the data frame
         # We set the current step to a random point within the data frame, because it essentially gives our agent’s more unique experiences from the same data set.
         if self.training:
             self.current_step = random.randint(
-                0, len(self.df.loc[:, 'Open'].values) - 6)
+                self.window_size, len(self.df.loc[:, 'Open'].values))
         else:
-            self.current_step = 0
+            self.current_step = self.window_size
+        
+        self.init_buyNhold_amount = INITIAL_ACCOUNT_BALANCE/self.df.loc[self.current_step, "Price"]
+        self.init_buyNhold_balance = INITIAL_ACCOUNT_BALANCE
 
         return self._next_observation()
 

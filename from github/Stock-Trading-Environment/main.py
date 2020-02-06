@@ -47,12 +47,13 @@ trainEnv = DummyVecEnv([lambda: StockTradingEnv(train_df, training=True)])
 testEnv = DummyVecEnv([lambda: StockTradingEnv(test_df, training=False)])
 final_result = []
 
-timestep_list = [50000]
+timestep_list = [100000]
 # timestep_list = [100]
 
 for tstep in timestep_list:
     for i in range(REPEAT_NO):
         profit_list = []
+        act_profit_list = []
         model = PPO2(MlpPolicy, trainEnv, verbose=1)
         model.learn(total_timesteps=tstep, log_interval=32)
 
@@ -66,6 +67,7 @@ for tstep in timestep_list:
                 print("Done")
                 break
             profit_list.append(info[0]['profit'])
+            act_profit_list.append(info[0]['actual_profit'])
             
             if i%365 == 0:
                 print("\n============= TESTING "+str(i)+" =============\n")
@@ -83,9 +85,14 @@ for tstep in timestep_list:
             "min": np.min(profit_list),
             "std": np.std(profit_list),
             "final": profit_list[-1],
+            "act_mean": np.mean(act_profit_list),
+            "act_max": np.max(act_profit_list),
+            "act_min": np.min(act_profit_list),
+            "act_std": np.std(act_profit_list),
+            "act_final": act_profit_list[-1],
             "total_shares_sold": info[0]['total_shares_sold']
         })
-        pickle.dump(final_result, open("./output/6/sp500_split_04FEB2020-okay.out", "wb"))
+        pickle.dump(final_result, open("./output/9/sp500_actual_10k Training_04FEB2020.out", "wb"))
         print("********* LENTH: ", len(final_result), " *********")
         pprint.pprint (final_result[-1])
 
