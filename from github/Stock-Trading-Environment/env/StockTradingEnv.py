@@ -16,17 +16,16 @@ INITIAL_ACCOUNT_BALANCE = 10000
 
 
 class StockTradingEnv(gym.Env):
-    """A stock trading environment for OpenAI gym"""
-    metadata = {'render.modes': ['human']}
+    # metadata = {'render.modes': ['human']}
 
-    def __init__(self, df, training=True):
+    def __init__(self, df, isTraining=True):
         super(StockTradingEnv, self).__init__()
 
-        self.training = training
+        self.training = isTraining
         self.window_size = 5
 
         self.df = df.reset_index(drop=True)
-        self.reward_range = (0, MAX_ACCOUNT_BALANCE)
+        # self.reward_range = (0, MAX_ACCOUNT_BALANCE)  # Legacy, Deleted on 10/FEB, we want negative
 
         # Actions of the format Buy x%, Sell x%, Hold, etc.
         self.action_space = spaces.Box(
@@ -42,10 +41,11 @@ class StockTradingEnv(gym.Env):
         appends the agent’s account information, and scales all the values to between 0 and 1.
         '''
         
-        # self.current_step is defined in reset method, and is a rendom time point within the frame
+        # self.current_step is defined in reset method,
+        # We assume the current_step is TODAY (BEFORE FINAL), which means we only know infomation till YESTERDAY ENDS.
 
         frame = np.array([
-            self.df.loc[self.current_step-self.window_size : self.current_step,
+            self.df.loc[self.current_step-self.window_size : self.current_step, # Not including current_step(TODAY)
                 'Open'].values / MAX_SHARE_PRICE,
             self.df.loc[self.current_step-self.window_size : self.current_step, 
                 'High'].values / MAX_SHARE_PRICE,
@@ -114,12 +114,20 @@ class StockTradingEnv(gym.Env):
         calculate the reward, and return the next observation.
         '''
 
-        # Execute one time step within the environment
+        # 1. Execute TODAY's Action
         self._take_action(action)
+        '''
+        Updates self.balance, self.cost_basis, self.shares_held,
+                self.total_shares_sold, self.total_sales_value,
+                self.net_worth, self.max_net_worth, 
+        '''  
+        self.current_step += 1   
+        # ****IMPORTANT: From now on, the current_step becomes TOMORROW****
+        # Keep the current_step undiscovered 
 
-        self.current_step += 1
         finished = False
         
+        # 2. Determine TOMORROW's Date (For training)
         if self.current_step > len(self.df.loc[:, 'Open'].values) - 1:
             # if self.training:
             if self.training:
@@ -138,7 +146,8 @@ class StockTradingEnv(gym.Env):
         It will also reward agents that maintain a higher balance for longer, 
         rather than those who rapidly gain money using unsustainable strategies.
         '''
-        self.init_buyNhold_balance = self.init_buyNhold_amount * self.df.loc[self.current_step, "Price"]
+        self.init_buyNhold_balance = self.init_buyNhold_amount * self.df.loc[self.current_step-1, "Price"]
+        
         profit = self.net_worth - INITIAL_ACCOUNT_BALANCE
         actual_profit = self.net_worth - self.init_buyNhold_balance
         
@@ -178,16 +187,24 @@ class StockTradingEnv(gym.Env):
         return self._next_observation()
 
     def render(self, mode='human', close=False):
-        # Render the environment to the screen
-        profit = self.net_worth - INITIAL_ACCOUNT_BALANCE
+        if mode=='human':
+            # Render the environment to the screen
+            profit = self.net_worth - INITIAL_ACCOUNT_BALANCE
 
-        print(f'Step: {self.current_step}')
-        print(f'Balance: {self.balance}')
-        print(
-            f'Shares held: {self.shares_held} (Total sold: {self.total_shares_sold})')
-        print(
-            f'Avg cost for held shares: {self.cost_basis} (Total sales value: {self.total_sales_value})')
-        print(
-            f'Net worth: {self.net_worth} (Max net worth: {self.max_net_worth})')
-        print(f'Profit: {profit}')
+            print(f'Step: {self.current_step}')
+            print(f'Balance: {self.balance}')
+            print(
+                f'Shares held: {self.shares_held} (Total sold: {self.total_shares_sold})')
+            print(
+                f'Avg cost for held shares: {self.cost_basis} (Total sales value: {self.total_sales_value})')
+            print(
+                f'Net worth: {self.net_worth} (Max net worth: {self.max_net_worth})')
+            print(f'Profit: {profit}')
+        
+        elif mode=='detail': # Want to add all transaction details
+            return {
+                "step": self.current_step-1,
+                # "date": 
+
+            }
 

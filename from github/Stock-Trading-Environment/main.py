@@ -43,8 +43,8 @@ test_df = df[(df['Date'] >= testStartDate) & (df['Date'] <= testEndDate)]
 # print (test_df)
 
 # The algorithms require a vectorized environment to run
-trainEnv = DummyVecEnv([lambda: StockTradingEnv(train_df, training=True)])
-testEnv = DummyVecEnv([lambda: StockTradingEnv(test_df, training=False)])
+trainEnv = DummyVecEnv([lambda: StockTradingEnv(train_df, isTraining=True)])
+testEnv = DummyVecEnv([lambda: StockTradingEnv(test_df, isTraining=False)])
 final_result = []
 
 timestep_list = [100000]
@@ -54,6 +54,7 @@ for tstep in timestep_list:
     for i in range(REPEAT_NO):
         profit_list = []
         act_profit_list = []
+        detail_list = []
         model = PPO2(MlpPolicy, trainEnv, verbose=1)
         model.learn(total_timesteps=tstep, log_interval=32)
 
@@ -69,6 +70,7 @@ for tstep in timestep_list:
             profit_list.append(info[0]['profit'])
             act_profit_list.append(info[0]['actual_profit'])
             
+
             if i%365 == 0:
                 print("\n============= TESTING "+str(i)+" =============\n")
                 testEnv.render()
