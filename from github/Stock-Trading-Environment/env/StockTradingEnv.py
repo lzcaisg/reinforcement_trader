@@ -82,10 +82,11 @@ class StockTradingEnv(gym.Env):
 
         if action_type < 1:
             # Buy amount % of balance in shares
-            self.current_action = amount
+            
 
             total_possible = int(self.balance / self.actual_price)
             shares_bought = int(total_possible * amount)
+            self.current_action = shares_bought
             prev_cost = self.cost_basis * self.shares_held
             additional_cost = shares_bought * self.actual_price * (1+COMMISSION_FEE)
 
@@ -96,9 +97,9 @@ class StockTradingEnv(gym.Env):
 
         elif action_type < 2:
             # Sell amount % of shares held
-            self.current_action = amount*-1
 
             shares_sold = int(self.shares_held * amount)
+            self.current_action = shares_sold*-1
             self.balance += shares_sold * self.actual_price
             self.shares_held -= shares_sold
             self.total_shares_sold += shares_sold
