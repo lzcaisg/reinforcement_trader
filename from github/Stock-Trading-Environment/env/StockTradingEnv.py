@@ -11,6 +11,7 @@ MAX_NUM_SHARES = 2147483647
 MAX_SHARE_PRICE = 5000
 MAX_OPEN_POSITIONS = 5
 MAX_STEPS = 20000
+COMMISSION_FEE = 0.008
 
 INITIAL_ACCOUNT_BALANCE = 10000
 
@@ -73,18 +74,20 @@ class StockTradingEnv(gym.Env):
 
     def _take_action(self, action):
         # Set the current price to a random price within the time step
-        current_price = random.uniform(
-            self.df.loc[self.current_step, "Open"], self.df.loc[self.current_step, "Price"])
+        self.actual_price = random.uniform(
+            self.df.loc[self.current_step, "Low"], self.df.loc[self.current_step, "High"])
 
         action_type = action[0]
         amount = action[1]
 
         if action_type < 1:
             # Buy amount % of balance in shares
-            total_possible = int(self.balance / current_price)
+            self.current_action = amount
+
+            total_possible = int(self.balance / self.actual_price)
             shares_bought = int(total_possible * amount)
             prev_cost = self.cost_basis * self.shares_held
-            additional_cost = shares_bought * current_price
+            additional_cost = shares_bought * self.actual_price * (1+COMMISSION_FEE)
 
             self.balance -= additional_cost
             self.cost_basis = (
@@ -93,13 +96,16 @@ class StockTradingEnv(gym.Env):
 
         elif action_type < 2:
             # Sell amount % of shares held
+            self.current_action = amount*-1
+
             shares_sold = int(self.shares_held * amount)
-            self.balance += shares_sold * current_price
+            self.balance += shares_sold * self.actual_price
             self.shares_held -= shares_sold
             self.total_shares_sold += shares_sold
-            self.total_sales_value += shares_sold * current_price
+            self.total_sales_value += shares_sold * self.actual_price
 
-        self.net_worth = self.balance + self.shares_held * current_price
+        self.prev_net_worth = self.net_worth
+        self.net_worth = self.balance + self.shares_held * self.actual_price
 
         if self.net_worth > self.max_net_worth:
             self.max_net_worth = self.net_worth
@@ -171,6 +177,8 @@ class StockTradingEnv(gym.Env):
         self.cost_basis = 0
         self.total_shares_sold = 0
         self.total_sales_value = 0
+        self.current_action = 0
+        self.prev_net_worth = INITIAL_ACCOUNT_BALANCE
         
 
         # Set the current step to a random point within the data frame
@@ -186,12 +194,19 @@ class StockTradingEnv(gym.Env):
 
         return self._next_observation()
 
-    def render(self, mode='human', close=False):
+    def render(self, mode='human', close=False, afterStep=True):
+        '''
+        afterStep: if is rendered after the step function, the current_step should -=1.
+        '''
+        todayStep = self.current_step
+        if afterStep:
+            todayStep -= 1
+            
         if mode=='human':
             # Render the environment to the screen
             profit = self.net_worth - INITIAL_ACCOUNT_BALANCE
 
-            print(f'Step: {self.current_step}')
+            print(f'Step: {todayStep}')
             print(f'Balance: {self.balance}')
             print(
                 f'Shares held: {self.shares_held} (Total sold: {self.total_shares_sold})')
@@ -203,8 +218,14 @@ class StockTradingEnv(gym.Env):
         
         elif mode=='detail': # Want to add all transaction details
             return {
-                "step": self.current_step-1,
-                # "date": 
-
+                "step": todayStep,
+                "date": self.df.loc[todayStep, "Date"],
+                "actual_price": self.actual_price,
+                "action": self.current_action,
+                "shares_held": self.shares_held,
+                "net_worth": self.net_worth,
+                "net_worth_delta": self.net_worth - self.prev_net_worth,
+                "buyNhold_balance": self.init_buyNhold_balance,
+                "actual_profit": self.net_worth - self.init_buyNhold_balance,
             }
 

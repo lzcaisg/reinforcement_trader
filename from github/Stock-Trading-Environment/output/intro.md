@@ -12,5 +12,7 @@
 8. Use backward window, Use Actual Profit as reward, 
    Train: 2004.01-2013.12 50k, Test: 2015.01-2019.12,
 
-8. Use backward window, Use Actual Profit as reward, 
+9. Use backward window, Use Actual Profit as reward, 
    Train: 2004.01-2013.12 100k, Test: 2015.01-2019.12,
+
+10. Same as 9, add Detailed Record Output for each day in each test

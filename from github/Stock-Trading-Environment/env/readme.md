@@ -30,13 +30,18 @@
     - The execution price is randomly selected between the open price and the close price of the day d.
     - Need to change to date when multiple stocks are used.
 
+- self.current_action: The amount of stock buy in.
 
 - self.net_worth = self.balance + self.shares_held * current_price
     - Value of Cash + Stock
 
-- self.balance: Total CASH on hand
+- self.prev_net_worth: Previous net worth.
 
 - self.max_net_worth: Max Net Worth (Cash + Stock)
+
+- self.actual_price: Random value between[low, high], the actual execution price
+
+- self.balance: Total CASH on hand
 
 - self.shares_held: Current number of stocks hold
 
@@ -51,4 +56,15 @@
 - self.init_buyNhold_balance: If we all-in to buy the stock in the first day, what is the current value of the stock.
 
 
+## 3. Rendering:
+mode=='detail': 
+- "step": todayStep,
+- "date": self.df.loc[todayStep, "Date"],
+- "actual_price": self.actual_price,
+- "action": self.current_action,
+- "shares_held": self.shares_held,
+- "net_worth": self.net_worth,
+- "net_worth_delta": self.net_worth - self.prev_net_worth,
+- "buyNhold_balance": self.init_buyNhold_balance,
+- "actual_profit": self.net_worth - self.init_buyNhold_balance,
 
