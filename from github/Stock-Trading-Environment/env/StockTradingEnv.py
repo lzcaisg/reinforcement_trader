@@ -28,9 +28,16 @@ class StockTradingEnv(gym.Env):
         self.df = df.reset_index(drop=True)
         # self.reward_range = (0, MAX_ACCOUNT_BALANCE)  # Legacy, Deleted on 10/FEB, we want negative
 
-        # Actions of the format Buy x%, Sell x%, Hold, etc.
+        # LEGACY: Actions of the format Buy x%, Sell x%, Hold, etc.
+        # self.action_space = spaces.Box(
+        #     low=np.array([0, 0]), high=np.array([3, 1]), dtype=np.float16)
+
         self.action_space = spaces.Box(
-            low=np.array([0, 0]), high=np.array([3, 1]), dtype=np.float16)
+            low=np.array([0]), high=np.array([1]), dtype=np.float16) 
+        '''
+        Represent how much % the asset is placed in stocks, 
+        0 means cash out and 1 means all-in
+        '''
 
         # Prices contains the OHCL values for the last five prices
         self.observation_space = spaces.Box(
@@ -77,15 +84,19 @@ class StockTradingEnv(gym.Env):
         self.actual_price = random.uniform(
             self.df.loc[self.current_step, "Low"], self.df.loc[self.current_step, "High"])
 
-        action_type = action[0]
-        amount = action[1]
+        # action in [0, 1], where 0 means cash out and 1 means all-in
+        share_value = self.shares_held * self.actual_price
+        networth_before_action = self.balance + self.shares_held * self.actual_price
+        # CANNOT USE self.networth because the share price has changed
+        share_ratio = share_value / networth_before_action
+        delta_ratio = action[0] - share_ratio
 
-        if action_type < 1:
+        if delta_ratio > 0:
             # Buy amount % of balance in shares
-            self.current_action = amount
 
-            total_possible = int(self.balance / self.actual_price)
-            shares_bought = int(total_possible * amount)
+            delta_share_value = delta_ratio * networth_before_action
+            shares_bought = delta_share_value / self.actual_price
+            self.current_action = shares_bought
             prev_cost = self.cost_basis * self.shares_held
             additional_cost = shares_bought * self.actual_price * (1+COMMISSION_FEE)
 
@@ -94,12 +105,12 @@ class StockTradingEnv(gym.Env):
                 prev_cost + additional_cost) / (self.shares_held + shares_bought)
             self.shares_held += shares_bought
 
-        elif action_type < 2:
+        elif delta_ratio < 0:
             # Sell amount % of shares held
-            self.current_action = amount*-1
-
-            shares_sold = int(self.shares_held * amount)
-            self.balance += shares_sold * self.actual_price
+            delta_share_value = -1*delta_ratio * networth_before_action
+            shares_sold = delta_share_value / self.actual_price           
+            self.current_action = -1*shares_sold
+            self.balance += shares_sold * self.actual_price * (1-COMMISSION_FEE)
             self.shares_held -= shares_sold
             self.total_shares_sold += shares_sold
             self.total_sales_value += shares_sold * self.actual_price

@@ -17,8 +17,8 @@ from os import path
 
 REPEAT_NO = 100
 SAVE_DIR = "./output/10/"
-common_fileName_prefix = "sp500_actual_10k-Training"
-summary_fileName_suffix = "summary-04FEB2020.out"
+common_fileName_prefix = "sp500_actual_5k-Training"
+summary_fileName_suffix = "summary.out"
 detail_fileName_suffix = "detailed-ModelNo-X.out"
 
 summary_fileName = common_fileName_prefix+'_'+summary_fileName_suffix
@@ -56,8 +56,8 @@ testEnv = DummyVecEnv([lambda: StockTradingEnv(test_df, isTraining=False)])
 final_result = []
 
 # ============ Number of days trained =============
-# tstep = 100000
-tstep = 100
+tstep = 50000
+# tstep = 100
 
 
 for modelNo in range(REPEAT_NO):
@@ -74,7 +74,7 @@ for modelNo in range(REPEAT_NO):
         action, _states = model.predict(obs)
         obs, rewards, done, info = testEnv.step(action)
         if done:
-            print("Done")
+            print("Done, TESTNO:"+str(testNo))
             break
         profit_list.append(info[0]['profit'])
         act_profit_list.append(info[0]['actual_profit'])
