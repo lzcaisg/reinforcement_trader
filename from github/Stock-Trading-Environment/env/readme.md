@@ -55,6 +55,13 @@
 
 - self.init_buyNhold_balance: If we all-in to buy the stock in the first day, what is the current value of the stock.
 
+## 2.1 Measure of Guiltiness
+- self.last_trade_step: The step number of the latest trade
+- self.max_price_since_last: The max price after the latest trade
+- self.min_price_since_last: The min price after the latest trade
+If the model is not trading for one week, start calculate the guiltiness to punish it for being passive.
+The punishment should be the 
+
 
 ## 3. Rendering:
 mode=='detail': 

@@ -84,27 +84,40 @@ class StockTradingEnv(gym.Env):
         sellAmount = action[2]
 
         if action_type < 1:
-            # Buy amount % of balance in shares
-            total_possible = self.balance / self.actual_price
-            shares_bought = total_possible * buyAmount
-            self.current_action = shares_bought
-            prev_cost = self.cost_basis * self.shares_held
-            additional_cost = shares_bought * self.actual_price * (1+COMMISSION_FEE)
+            # [0,1): Buy amount % of balance in shares
+            cash_spend = self.balance * buyAmount
+            if cash_spend < 0.01*self.net_worth: # Not executing this transaction
+                buyAmount = 0
+                cash_spend = 0
+                self.current_action = 0
+            else:
+                shares_bought = cash_spend / (self.actual_price*(1+COMMISSION_FEE))
+                self.current_action = shares_bought
+                prev_cost = self.cost_basis * self.shares_held
 
-            self.balance -= additional_cost
-            self.cost_basis = (
-                prev_cost + additional_cost) / (self.shares_held + shares_bought)
-            self.shares_held += shares_bought
+                self.balance -= cash_spend
+                self.cost_basis = (
+                    prev_cost + cash_spend) / (self.shares_held + shares_bought)
+                self.shares_held += shares_bought
 
         elif action_type < 2:
-            # Sell amount % of shares held
+            # [1,2): Sell amount % of shares held
 
             shares_sold = self.shares_held * sellAmount
-            self.current_action = shares_sold*-1
-            self.balance += shares_sold * self.actual_price
-            self.shares_held -= shares_sold
-            self.total_shares_sold += shares_sold
-            self.total_sales_value += shares_sold * self.actual_price
+            cash_get = shares_sold*self.actual_price*(1-COMMISSION_FEE)
+            if cash_get < 0.001*self.net_worth: # Not executing this transaction
+                sellAmount = 0
+                shares_sold = 0
+                cash_get = 0
+                self.current_action = 0
+            else: 
+                self.current_action = shares_sold*-1
+                self.balance += shares_sold * self.actual_price
+                self.shares_held -= shares_sold
+                self.total_shares_sold += shares_sold
+                self.total_sales_value += shares_sold * self.actual_price
+        else: # [2,3): Hold
+            self.current_action = 0
 
         self.prev_net_worth = self.net_worth
         self.net_worth = self.balance + self.shares_held * self.actual_price

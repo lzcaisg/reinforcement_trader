@@ -16,3 +16,7 @@
    Train: 2004.01-2013.12 100k, Test: 2015.01-2019.12,
 
 10. Same as 9, add Detailed Record Output for each day in each test
+
+11. Same as 10, Use 3-dim Action Space
+
+12. Same as 11, Filter out the small amount transaction
