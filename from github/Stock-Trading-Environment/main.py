@@ -16,9 +16,9 @@ import pprint
 from os import path
 
 
-SAVE_DIR = "./output/10/"
-common_fileName_prefix = "sp500_actual_10k-Training"
-summary_fileName_suffix = "summary-04FEB2020.out"
+SAVE_DIR = "./output/11/"
+common_fileName_prefix = "sp500_3dim_10k-Training"
+summary_fileName_suffix = "summary-13FEB.out"
 detail_fileName_suffix = "detailed-ModelNo-X.out"
 
 summary_fileName = common_fileName_prefix+'_'+summary_fileName_suffix

@@ -30,7 +30,9 @@ class StockTradingEnv(gym.Env):
 
         # Actions of the format Buy x%, Sell x%, Hold, etc.
         self.action_space = spaces.Box(
-            low=np.array([0, 0]), high=np.array([3, 1]), dtype=np.float16)
+            low=np.array([0, 0, 0]), high=np.array([3, 1, 1]), dtype=np.float16) # [Action, buyAmount, sellAmount]
+            # Action in [0,1]: Buy, in [1,2]: Sell, in [2,3]: Hold;
+
 
         # Prices contains the OHCL values for the last five prices
         self.observation_space = spaces.Box(
@@ -78,14 +80,13 @@ class StockTradingEnv(gym.Env):
             self.df.loc[self.current_step, "Low"], self.df.loc[self.current_step, "High"])
 
         action_type = action[0]
-        amount = action[1]
+        buyAmount = action[1]
+        sellAmount = action[2]
 
         if action_type < 1:
             # Buy amount % of balance in shares
-            
-
             total_possible = self.balance / self.actual_price
-            shares_bought = total_possible * amount
+            shares_bought = total_possible * buyAmount
             self.current_action = shares_bought
             prev_cost = self.cost_basis * self.shares_held
             additional_cost = shares_bought * self.actual_price * (1+COMMISSION_FEE)
@@ -98,7 +99,7 @@ class StockTradingEnv(gym.Env):
         elif action_type < 2:
             # Sell amount % of shares held
 
-            shares_sold = self.shares_held * amount
+            shares_sold = self.shares_held * sellAmount
             self.current_action = shares_sold*-1
             self.balance += shares_sold * self.actual_price
             self.shares_held -= shares_sold
