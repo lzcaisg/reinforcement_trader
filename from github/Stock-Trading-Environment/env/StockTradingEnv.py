@@ -134,28 +134,30 @@ class StockTradingEnv(gym.Env):
         At each step we will take the specified action (chosen by our model), 
         calculate the reward, and return the next observation.
         '''
-
-        # 1. Execute TODAY's Action
-        self._take_action(action)
-        '''
-        Updates self.balance, self.cost_basis, self.shares_held,
-                self.total_shares_sold, self.total_sales_value,
-                self.net_worth, self.max_net_worth, 
-        '''  
-        self.current_step += 1   
-        # ****IMPORTANT: From now on, the current_step becomes TOMORROW****
-        # Keep the current_step undiscovered 
-
         finished = False
-        
-        # 2. Determine TOMORROW's Date (For training)
-        if self.current_step > len(self.df.loc[:, 'Open'].values) - 1:
+        # 1. Determine TODAY's Date (For training)
+        if self.current_step > len(self.df.loc[:, 'Open'].values) - 2:
             # if self.training:
             if self.training:
+                self._take_action(action)
                 self.current_step = self.window_size  # Going back to time 0
             else:
-                self.current_step -= 1
+                action = np.array([1,0,1]) # SELL EVERYTHING on the last day
+                self._take_action(action)
                 finished = True
+        else:
+            # 1. Execute TODAY's Action
+            self._take_action(action)
+            '''
+            Updates self.balance, self.cost_basis, self.shares_held,
+                    self.total_shares_sold, self.total_sales_value,
+                    self.net_worth, self.max_net_worth, 
+            '''  
+            self.current_step += 1   
+            # ****IMPORTANT: From now on, the current_step becomes TOMORROW****
+            # Keep the current_step undiscovered 
+        
+
 
         '''
         We want to incentivize profit that is sustained over long periods of time. 
