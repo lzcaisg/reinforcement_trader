@@ -15,7 +15,7 @@ from CSVUtils import csv2df
 import pprint
 from os import path
 
-REPEAT_NO = 100
+
 SAVE_DIR = "./output/10/"
 common_fileName_prefix = "sp500_actual_10k-Training"
 summary_fileName_suffix = "summary-04FEB2020.out"
@@ -56,8 +56,9 @@ testEnv = DummyVecEnv([lambda: StockTradingEnv(test_df, isTraining=False)])
 final_result = []
 
 # ============ Number of days trained =============
-# tstep = 100000
-tstep = 100
+REPEAT_NO = 10
+tstep = 100000
+# tstep = 100
 
 
 for modelNo in range(REPEAT_NO):
