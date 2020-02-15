@@ -16,8 +16,8 @@ import pprint
 from os import path
 
 
-SAVE_DIR = "./output/12/"
-common_fileName_prefix = "sp500_FilteredSmall_10k-Training"
+SAVE_DIR = "./output/13/"
+common_fileName_prefix = "sp500_Cashout_10k-Training"
 summary_fileName_suffix = "summary-13FEB.out"
 detail_fileName_suffix = "detailed-ModelNo-X.out"
 
@@ -66,7 +66,7 @@ for modelNo in range(REPEAT_NO):
     act_profit_list = []
     detail_list = []
     model = PPO2(MlpPolicy, trainEnv, verbose=1)
-    model.learn(total_timesteps=tstep, log_interval=32)
+    model.learn(total_timesteps=tstep, log_interval=256)
 
     obs = testEnv.reset()
 
