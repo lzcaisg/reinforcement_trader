@@ -21,4 +21,8 @@
 
 12. Same as 11, Filter out the small amount transaction
 
-13. Required to cash out on the last day
+13. Required to cash out on the last day (NOT WORKING)
+
+14. Required to cash out on the last day (done, no train)
+
+15. Use Delta Ratio as Reward

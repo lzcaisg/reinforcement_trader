@@ -16,9 +16,9 @@ import pprint
 from os import path
 
 
-SAVE_DIR = "./output/14/"
-common_fileName_prefix = "sp500_Cashout_10k-Training"
-summary_fileName_suffix = "summary-13FEB.out"
+SAVE_DIR = "./output/15/10"
+common_fileName_prefix = "sp500_deltaReward_10k-Training"
+summary_fileName_suffix = "summary.out"
 detail_fileName_suffix = "detailed-ModelNo-X.out"
 
 summary_fileName = common_fileName_prefix+'_'+summary_fileName_suffix
@@ -57,8 +57,8 @@ final_result = []
 
 # ============ Number of days trained =============
 REPEAT_NO = 10
-# tstep = 100000
-tstep = 100
+tstep = 50000
+# tstep = 100
 
 
 for modelNo in range(REPEAT_NO):

@@ -173,15 +173,19 @@ class StockTradingEnv(gym.Env):
         It will also reward agents that maintain a higher balance for longer, 
         rather than those who rapidly gain money using unsustainable strategies.
         '''
-        
-        self.init_buyNhold_balance = self.init_buyNhold_amount * self.df.loc[self.current_step-1, "Price"]
+        self.prev_buyNhold_balance = self.buyNhold_balance
+        self.buyNhold_balance = self.init_buyNhold_amount * self.df.loc[self.current_step-1, "Price"]
         
         profit = self.net_worth - INITIAL_ACCOUNT_BALANCE
-        actual_profit = self.net_worth - self.init_buyNhold_balance
+        actual_profit = self.net_worth - self.buyNhold_balance
         
         delay_modifier = (self.current_step / MAX_STEPS)
         # reward = self.balance * delay_modifier  # Original Version
-        reward = actual_profit * delay_modifier  # Use Actual Net Profit
+        # reward = actual_profit * delay_modifier  # Use Actual Net Profit
+
+        net_worth_delta = self.net_worth - self.prev_net_worth
+        buyNhold_delta = self.buyNhold_balance - self.prev_buyNhold_balance
+        reward = (net_worth_delta+1)/(buyNhold_delta+1)
 
         done = (self.net_worth <= 0) or self.finished_twice # OpenAI will reset if done==True
         if not self.finished:
@@ -208,6 +212,7 @@ class StockTradingEnv(gym.Env):
         self.total_sales_value = 0
         self.current_action = 0
         self.prev_net_worth = INITIAL_ACCOUNT_BALANCE
+        self.prev_buyNhold_balance = 0
         self.finished = False
         self.finished_twice = False
         
@@ -221,7 +226,7 @@ class StockTradingEnv(gym.Env):
             self.current_step = self.window_size
         
         self.init_buyNhold_amount = INITIAL_ACCOUNT_BALANCE/self.df.loc[self.current_step, "Price"]
-        self.init_buyNhold_balance = INITIAL_ACCOUNT_BALANCE
+        self.buyNhold_balance = INITIAL_ACCOUNT_BALANCE
 
         return self._next_observation()
 
@@ -230,8 +235,7 @@ class StockTradingEnv(gym.Env):
         afterStep: if is rendered after the step function, the current_step should -=1.
         '''
         todayStep = self.current_step
-        if afterStep:
-            todayStep -= 1
+        if afterStep: todayStep -= 1
             
         if mode=='human':
             # Render the environment to the screen
@@ -248,6 +252,8 @@ class StockTradingEnv(gym.Env):
             print(f'Profit: {profit}')
         
         elif mode=='detail': # Want to add all transaction details
+            net_worth_delta = self.net_worth - self.prev_net_worth
+            buyNhold_delta = self.buyNhold_balance - self.prev_buyNhold_balance
             return {
                 "step": todayStep,
                 "date": self.df.loc[todayStep, "Date"],
@@ -255,8 +261,10 @@ class StockTradingEnv(gym.Env):
                 "action": self.current_action,
                 "shares_held": self.shares_held,
                 "net_worth": self.net_worth,
-                "net_worth_delta": self.net_worth - self.prev_net_worth,
-                "buyNhold_balance": self.init_buyNhold_balance,
-                "actual_profit": self.net_worth - self.init_buyNhold_balance,
+                "net_worth_delta": net_worth_delta,
+                "buyNhold_balance": self.buyNhold_balance,
+                "buyNhold_delta": buyNhold_delta,
+                "actual_profit": self.net_worth - self.buyNhold_balance,
+                "progress": (net_worth_delta+1)/(buyNhold_delta+1)
             }
 
