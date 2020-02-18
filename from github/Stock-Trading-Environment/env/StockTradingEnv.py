@@ -19,19 +19,22 @@ INITIAL_ACCOUNT_BALANCE = 10000
 class StockTradingEnv(gym.Env):
     # metadata = {'render.modes': ['human']}
 
-    def __init__(self, df, isTraining=True):
+    def __init__(self, df_list, isTraining=True):
         super(StockTradingEnv, self).__init__()
 
         self.training = isTraining
         self.window_size = 5
+        self.df_list = []
+        for df in df_list:
+            self.df_list.append(df.reset_index(drop=True))
 
-        self.df = df.reset_index(drop=True)
-        # self.reward_range = (0, MAX_ACCOUNT_BALANCE)  # Legacy, Deleted on 10/FEB, we want negative
 
-        # Actions of the format Buy x%, Sell x%, Hold, etc.
+        market_number = len(df_list)+1 # Adding the CASH as well
+        lower_bond = [0]*market_number
+        upper_bond = [1]*market_number
         self.action_space = spaces.Box(
-            low=np.array([0, 0, 0]), high=np.array([3, 1, 1]), dtype=np.float16) # [Action, buyAmount, sellAmount]
-            # Action in [0,1]: Buy, in [1,2]: Sell, in [2,3]: Hold;
+            low=np.array(lower_bond), high=np.array(upper_bond), dtype=np.float16) 
+        # Give weight to each and we take the average later, the last Asset is the CASH
 
 
         # Prices contains the OHCL values for the last five prices
