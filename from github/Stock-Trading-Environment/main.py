@@ -16,8 +16,8 @@ import pprint
 from os import path
 
 
-SAVE_DIR = "./output/15/10"
-common_fileName_prefix = "sp500_deltaReward_10k-Training"
+SAVE_DIR = "./output/15/0"
+common_fileName_prefix = "sp500_deltaReward_0k-Training"
 summary_fileName_suffix = "summary.out"
 detail_fileName_suffix = "detailed-ModelNo-X.out"
 

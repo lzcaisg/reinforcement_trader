@@ -23,7 +23,7 @@ class StockTradingEnv(gym.Env):
         super(StockTradingEnv, self).__init__()
 
         self.training = isTraining
-        self.window_size = 5
+        self.window_size = 6
 
         self.df = df.reset_index(drop=True)
         # self.reward_range = (0, MAX_ACCOUNT_BALANCE)  # Legacy, Deleted on 10/FEB, we want negative
@@ -48,15 +48,15 @@ class StockTradingEnv(gym.Env):
         # We assume the current_step is TODAY (BEFORE FINAL), which means we only know infomation till YESTERDAY ENDS.
 
         frame = np.array([
-            self.df.loc[self.current_step-self.window_size : self.current_step, # Not including current_step(TODAY)
+            self.df.loc[self.current_step-self.window_size : self.current_step-1, # Not including current_step(TODAY)
                 'Open'].values / MAX_SHARE_PRICE,
-            self.df.loc[self.current_step-self.window_size : self.current_step, 
+            self.df.loc[self.current_step-self.window_size : self.current_step-1, 
                 'High'].values / MAX_SHARE_PRICE,
-            self.df.loc[self.current_step-self.window_size : self.current_step, 
+            self.df.loc[self.current_step-self.window_size : self.current_step-1, 
                 'Low'].values / MAX_SHARE_PRICE,
-            self.df.loc[self.current_step-self.window_size : self.current_step, 
+            self.df.loc[self.current_step-self.window_size : self.current_step-1, 
                 'Price'].values / MAX_SHARE_PRICE,
-            self.df.loc[self.current_step-self.window_size : self.current_step, 
+            self.df.loc[self.current_step-self.window_size : self.current_step-1, 
                 'Vol'].values / MAX_NUM_SHARES,
         ])
 
