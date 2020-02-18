@@ -20,3 +20,5 @@
 11. Same as 10, Use 3-dim Action Space
 
 12. Same as 11, Filter out the small amount transaction
+
+13. Required to cash out on the last day

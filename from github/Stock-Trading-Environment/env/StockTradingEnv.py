@@ -134,17 +134,21 @@ class StockTradingEnv(gym.Env):
         At each step we will take the specified action (chosen by our model), 
         calculate the reward, and return the next observation.
         '''
-        finished = False
         # 1. Determine TODAY's Date (For training)
         if self.current_step > len(self.df.loc[:, 'Open'].values) - 2:
             # if self.training:
             if self.training:
                 self._take_action(action)
                 self.current_step = self.window_size  # Going back to time 0
-            else:
-                action = np.array([1,0,1]) # SELL EVERYTHING on the last day
-                self._take_action(action)
-                finished = True
+            else: # if is testing
+                if not self.finished:
+                    self.finished = True
+                    print("$$$$$$$$$$$ CASH OUT at time "+ str(self.df.loc[self.current_step, "Date"]) + "$$$$$$$$$$$")
+                    action = np.array([1,0,1]) # SELL EVERYTHING on the last day
+                    self._take_action(action)
+                    self.current_step += 1
+                else:
+                    self.finished_twice = True
         else:
             # 1. Execute TODAY's Action
             self._take_action(action)
@@ -169,6 +173,7 @@ class StockTradingEnv(gym.Env):
         It will also reward agents that maintain a higher balance for longer, 
         rather than those who rapidly gain money using unsustainable strategies.
         '''
+        
         self.init_buyNhold_balance = self.init_buyNhold_amount * self.df.loc[self.current_step-1, "Price"]
         
         profit = self.net_worth - INITIAL_ACCOUNT_BALANCE
@@ -178,12 +183,19 @@ class StockTradingEnv(gym.Env):
         # reward = self.balance * delay_modifier  # Original Version
         reward = actual_profit * delay_modifier  # Use Actual Net Profit
 
-        done = (self.net_worth <= 0) or finished
-        obs = self._next_observation()
+        done = (self.net_worth <= 0) or self.finished_twice # OpenAI will reset if done==True
+        if not self.finished:
+            obs = self._next_observation()
+        else:
+            self.current_step-=1
+            obs = self._next_observation()
+            self.current_step+=1
 
-        info = {"profit": profit, "total_shares_sold": self.total_shares_sold, "actual_profit": actual_profit}
-
-        return obs, reward, done, info
+        if not self.finished_twice:
+            info = {"profit": profit, "total_shares_sold": self.total_shares_sold, "actual_profit": actual_profit}
+        else:
+            info = {"profit": 0, "total_shares_sold": 0, "actual_profit": 0}
+        return (obs, reward, done, info)
 
     def reset(self):
         # Reset the state of the environment to an initial state
@@ -196,6 +208,8 @@ class StockTradingEnv(gym.Env):
         self.total_sales_value = 0
         self.current_action = 0
         self.prev_net_worth = INITIAL_ACCOUNT_BALANCE
+        self.finished = False
+        self.finished_twice = False
         
 
         # Set the current step to a random point within the data frame

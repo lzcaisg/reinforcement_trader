@@ -16,7 +16,7 @@ import pprint
 from os import path
 
 
-SAVE_DIR = "./output/13/"
+SAVE_DIR = "./output/14/"
 common_fileName_prefix = "sp500_Cashout_10k-Training"
 summary_fileName_suffix = "summary-13FEB.out"
 detail_fileName_suffix = "detailed-ModelNo-X.out"
@@ -57,8 +57,8 @@ final_result = []
 
 # ============ Number of days trained =============
 REPEAT_NO = 10
-tstep = 100000
-# tstep = 100
+# tstep = 100000
+tstep = 100
 
 
 for modelNo in range(REPEAT_NO):
@@ -81,12 +81,15 @@ for modelNo in range(REPEAT_NO):
         act_profit_list.append(info[0]['actual_profit'])
         singleDay_record = testEnv.render(mode="detail")
         singleDay_record['testNo'] = testNo
-        if singleDay_record['action'] != 0:
+        if (singleDay_record['action'] != 0) or done:
             detail_list.append(singleDay_record)
 
         if testNo%365 == 0:
             print("\n============= TESTING "+str(testNo)+" =============\n")
             testEnv.render()
+
+
+        
 
     detail_fileName = detail_fileName_model[:-5] + str(modelNo) + detail_fileName_model[-4:]
     pickle.dump(detail_list, open(path.join(SAVE_DIR, detail_fileName), "wb"))
