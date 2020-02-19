@@ -96,12 +96,14 @@ class StockTradingEnv(gym.Env):
         
 
         cash_obs = np.array([
-                [1]*self.window_size / MAX_SHARE_PRICE,
-                [1]*self.window_size / MAX_SHARE_PRICE,
-                [1]*self.window_size / MAX_SHARE_PRICE,
-                [1]*self.window_size / MAX_SHARE_PRICE,
-                [1]*self.window_size
+                np.array([1]*self.window_size) / MAX_SHARE_PRICE,
+                np.array([1]*self.window_size) / MAX_SHARE_PRICE,
+                np.array([1]*self.window_size) / MAX_SHARE_PRICE,
+                np.array([1]*self.window_size) / MAX_SHARE_PRICE,
+                np.array([1]*self.window_size)
             ])
+
+        cash_obs = np.stack(cash_obs)
 
         cash_obs = np.append(cash_obs, [[
                 self.cash / MAX_ACCOUNT_BALANCE,
@@ -172,7 +174,7 @@ class StockTradingEnv(gym.Env):
         self.prev_total_net_worth = self.total_net_worth
         self.total_net_worth = np.sum(self.net_worth)
         if self.total_net_worth > self.max_net_worth:
-            self.max_net_worth = self.net_worth
+            self.max_net_worth = self.total_net_worth
 
 
 
@@ -326,16 +328,25 @@ class StockTradingEnv(gym.Env):
         self.total_net_worth = INITIAL_ACCOUNT_BALANCE
         self.prev_total_net_worth = INITIAL_ACCOUNT_BALANCE
         self.max_net_worth = INITIAL_ACCOUNT_BALANCE
-        self.shares_held = 0
-        self.cost_basis = []
-        self.total_shares_sold = []
-        self.total_sales_value = []
-        self.current_action = []
-        self.prev_net_worth = []
+        
         self.prev_buyNhold_balance = 0
         self.finished = False
         self.finished_twice = False
-        self.net_worth = 0
+        
+        self.net_worth = [0]*len(self.df_list)
+        self.net_worth.append(INITIAL_ACCOUNT_BALANCE)
+        
+        self.shares_held = self.net_worth
+        self.total_shares_sold = self.net_worth
+        self.prev_net_worth = self.net_worth
+        
+        self.cost_basis = [0]*len(self.df_list)
+        self.cost_basis.append(1)
+
+        self.total_sales_value = [0]*(len(self.df_list)+1)
+        self.current_action = [0]*(len(self.df_list)+1)
+        
+
 
         # Set the current step to a random point within the data frame
         # We set the current step to a random point within the data frame, because it essentially gives our agent’s more unique experiences from the same data set.
@@ -346,12 +357,9 @@ class StockTradingEnv(gym.Env):
         else:
             self.current_date = self.start_date + pd.Timedelta(days = self.window_size) # For Multiple Markets: Replace current_step with current_date
 
-        init_price = np.array([
-            df.loc[self.start_date, "Price"]  
-            for df in self.df_list]
-            .append(1)
-            )
-        
+        init_price = [df.loc[self.start_date, "Price"] for df in self.df_list]
+        init_price = np.array(init_price)
+
         self.prev_buyNhold_price = init_price
         self.init_buyNhold_amount = (INITIAL_ACCOUNT_BALANCE/len(init_price)) / init_price
         self.buyNhold_balance = INITIAL_ACCOUNT_BALANCE
