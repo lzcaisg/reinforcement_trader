@@ -16,8 +16,8 @@ import pprint
 from os import path
 
 
-SAVE_DIR = "./output/15/10"
-common_fileName_prefix = "sp500_deltaReward_10k-Training"
+SAVE_DIR = "./output/100"
+common_fileName_prefix = "sp500+dax+hk_0k-Training"
 summary_fileName_suffix = "summary.out"
 detail_fileName_suffix = "detailed-ModelNo-X.out"
 
@@ -28,31 +28,37 @@ detail_fileName_model = common_fileName_prefix+'_'+detail_fileName_suffix
 # df = pd.read_csv('../../input/2006-2019/S&P 500 Historical Data.csv')
 
 # df = csv2df('../../input/2006-2019', 'S&P 500 Historical Data.csv')
-df = csv2df('../../', '^GSPC.csv', source = "yahoo")
-
-
-df = df.sort_values('Date')
-df = df.reset_index(drop=True)
 
 trainYears = 10
 testYears = 5
 
+df_namelist = ['^GSPC.csv', '^GDAXI.csv', '^HSI.csv']
+rootDir = "./data"
+train_df_list = []
+test_df_list = []
 trainStartDate = pd.to_datetime("2004-01-01")
-testEndDate = df['Date'].max()
-testStartDate = testEndDate - pd.Timedelta(days=testYears*365)
-trainEndDate = min(testStartDate-pd.Timedelta(days=1), trainStartDate+pd.Timedelta(days=trainYears*365))
+trainEndDate = pd.to_datetime("2013-12-31")
 
-print(trainStartDate, trainEndDate, testStartDate, testEndDate)
+testStartDate = pd.to_datetime("2015-01-01")
+testEndDate = pd.to_datetime("2019-12-31")
 
-train_df = df[(df['Date'] >= trainStartDate) & (df['Date'] <= trainEndDate)]
-test_df = df[(df['Date'] >= testStartDate) & (df['Date'] <= testEndDate)]
+for name in df_namelist:
+    df = csv2df(rootDir, name, source = "yahoo")
+    df = df.sort_values('Date')
+    df = df.reset_index(drop=True)
+
+    train_df = df[(df['Date'] >= trainStartDate) & (df['Date'] <= trainEndDate)]
+    test_df = df[(df['Date'] >= testStartDate) & (df['Date'] <= testEndDate)]
+
+    train_df_list.append(train_df)
+    test_df_list.append(test_df)
 
 
 # print (test_df)
 
 # The algorithms require a vectorized environment to run
-trainEnv = DummyVecEnv([lambda: StockTradingEnv(train_df, isTraining=True)])
-testEnv = DummyVecEnv([lambda: StockTradingEnv(test_df, isTraining=False)])
+trainEnv = DummyVecEnv([lambda: StockTradingEnv(train_df_list,  isTraining=True)])
+testEnv = DummyVecEnv([lambda: StockTradingEnv(test_df_list, isTraining=False)])
 final_result = []
 
 # ============ Number of days trained =============
@@ -81,7 +87,7 @@ for modelNo in range(REPEAT_NO):
         act_profit_list.append(info[0]['actual_profit'])
         singleDay_record = testEnv.render(mode="detail")
         singleDay_record['testNo'] = testNo
-        if (singleDay_record['action'] != 0) or done:
+        if done:
             detail_list.append(singleDay_record)
 
         if testNo%365 == 0:

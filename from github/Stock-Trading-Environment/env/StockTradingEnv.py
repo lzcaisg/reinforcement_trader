@@ -20,7 +20,7 @@ class StockTradingEnv(gym.Env):
     # metadata = {'render.modes': ['human']}
     
 
-    def __init__(self, df_list, startDate, isTraining=True):
+    def __init__(self, df_list, isTraining=True):
         super(StockTradingEnv, self).__init__()
 
         self.training = isTraining
