@@ -19,25 +19,32 @@ INITIAL_ACCOUNT_BALANCE = 10000
 class StockTradingEnv(gym.Env):
     # metadata = {'render.modes': ['human']}
 
-    def __init__(self, df_list, isTraining=True):
+    def _getClosestDateAfter(df, date):
+        s = pd.to_datetime(df.index.to_series()) - pd.to_datetime(startDate)
+        return s[s >= pd.Timedelta(0)].idxmin()
+
+    def __init__(self, df_list, startDate, isTraining=True):
         super(StockTradingEnv, self).__init__()
 
         self.training = isTraining
-        self.window_size = 5
+        self.window_size = 6
         self.df_list = []
         for df in df_list:
-            self.df_list.append(df.reset_index(drop=True))
+            df.reset_index(drop=True)
+            df.set_index('Date', inplace=True) # For Multiple Markets: Use Date as index
+            self.df_list.append(df)
 
+        self.start_date = min([self._getClosestDateAfter(df, startDate) for df in self.df_list])
+        self.current_date = self.start_date + pd.Timedelta(days = self.window_size) # For Multiple Markets: Replace current_step with current_date
 
-        market_number = len(df_list)+1 # Adding the CASH as well
+        market_number = len(df_list)+1  # For Multiple Markets: Adding the CASH to the action
         lower_bond = [0]*market_number
         upper_bond = [1]*market_number
         self.action_space = spaces.Box(
-            low=np.array(lower_bond), high=np.array(upper_bond), dtype=np.float16) 
+            low=np.array(lower_bond), high=np.array(upper_bond), dtype=np.float16)
         # Give weight to each and we take the average later, the last Asset is the CASH
 
-
-        # Prices contains the OHCL values for the last five prices
+        # Prices contains the OHCL values for the last six prices
         self.observation_space = spaces.Box(
             low=0, high=1, shape=(6, 6), dtype=np.float16)
 
@@ -46,42 +53,90 @@ class StockTradingEnv(gym.Env):
         The _next_observation method compiles the stock data for the last five time steps, 
         appends the agent’s account information, and scales all the values to between 0 and 1.
         '''
-        
+
         # self.current_step is defined in reset method,
         # We assume the current_step is TODAY (BEFORE FINAL), which means we only know infomation till YESTERDAY ENDS.
+        obs_list = []
+        
+        for i, df in enumerate(self.df_list):
+            frame = np.array([
+                df.loc[pd.date_range(self.current_date-pd.Timedelta(days=self.window_size), 
+                    self.current_date-pd.Timedelta(days=1)),
+                    'Open'].values / MAX_SHARE_PRICE,
+                
+                df.loc[pd.date_range(self.current_date-pd.Timedelta(days=self.window_size), 
+                    self.current_date-pd.Timedelta(days=1)),
+                    'High'].values / MAX_SHARE_PRICE,
+                
+                df.loc[pd.date_range(self.current_date-pd.Timedelta(days=self.window_size), 
+                    self.current_date-pd.Timedelta(days=1)),
+                    'Low'].values / MAX_SHARE_PRICE,
 
-        frame = np.array([
-            self.df.loc[self.current_step-self.window_size : self.current_step, # Not including current_step(TODAY)
-                'Open'].values / MAX_SHARE_PRICE,
-            self.df.loc[self.current_step-self.window_size : self.current_step, 
-                'High'].values / MAX_SHARE_PRICE,
-            self.df.loc[self.current_step-self.window_size : self.current_step, 
-                'Low'].values / MAX_SHARE_PRICE,
-            self.df.loc[self.current_step-self.window_size : self.current_step, 
-                'Price'].values / MAX_SHARE_PRICE,
-            self.df.loc[self.current_step-self.window_size : self.current_step, 
-                'Vol'].values / MAX_NUM_SHARES,
-        ])
+                df.loc[pd.date_range(self.current_date-pd.Timedelta(days=self.window_size), 
+                    self.current_date-pd.Timedelta(days=1)),
+                    'Price'].values / MAX_SHARE_PRICE,
 
+                df.loc[pd.date_range(self.current_date-pd.Timedelta(days=self.window_size), 
+                    self.current_date-pd.Timedelta(days=1)),
+                    'Vol'].values / MAX_NUM_SHARES,
+            ])
 
-        # Append additional data and scale each value to between 0-1
-        obs = np.append(frame, [[
-            self.balance / MAX_ACCOUNT_BALANCE,
-            self.max_net_worth / MAX_ACCOUNT_BALANCE,
-            self.shares_held / MAX_NUM_SHARES,
-            self.cost_basis / MAX_SHARE_PRICE,
-            self.total_shares_sold / MAX_NUM_SHARES,
-            self.total_sales_value / (MAX_NUM_SHARES * MAX_SHARE_PRICE),
-        ]], axis=0)
+            # Append additional data and scale each value to between 0-1
+            obs = np.append(frame, [[
+                self.cash / MAX_ACCOUNT_BALANCE,
+                self.total_net_worth / MAX_ACCOUNT_BALANCE,
+                self.net_worth[i] / MAX_ACCOUNT_BALANCE,
+                self.shares_held[i] / MAX_NUM_SHARES,
+                self.cost_basis[i] / MAX_SHARE_PRICE,
+                self.total_shares_sold[i] / MAX_NUM_SHARES,
+            ]], axis=0)
 
+            obs_list.append(obs)
+        
 
-        return obs
+        cash_obs = np.array([
+                [1]*self.window_size / MAX_SHARE_PRICE,
+                [1]*self.window_size / MAX_SHARE_PRICE,
+                [1]*self.window_size / MAX_SHARE_PRICE,
+                [1]*self.window_size / MAX_SHARE_PRICE,
+                [1]*self.window_size
+            ])
+            
+        cash_obs = np.append(cash_obs, [[
+                self.cash / MAX_ACCOUNT_BALANCE,
+                self.total_net_worth / MAX_ACCOUNT_BALANCE,
+                self.cash / MAX_ACCOUNT_BALANCE,
+                self.cash / MAX_NUM_SHARES,
+                1 / MAX_SHARE_PRICE,
+                self.cash / MAX_NUM_SHARES,
+            ]], axis=0)
+
+        obs_list.append(cash_obs)
+
+        return np.array(obs_list)
 
     def _take_action(self, action):
         # Set the current price to a random price within the time step
-        self.actual_price = random.uniform(
-            self.df.loc[self.current_step, "Low"], self.df.loc[self.current_step, "High"])
+        
+        self.actual_price = np.array([
+            random.uniform(df.loc[self.current_date, "Low"], df.loc[self.current_date, "High"]) 
+            if self.current_date in df.index
+            else np.nan 
+            for df in self.df_list]) # e.g.[np.nan, ]
 
+        tradable_stock = np.isnan(self.actual_price)
+        available_shares_value = self.actual_price * self.shares_held # dim:n, those with no price will be nan
+        available_total_value = np.nansum(available_shares_value)
+        available_action = action * (tradable_stock * -1 + 1)
+        available_action_weighted = available_action/np.nansum(available_action)
+
+
+        # dim(self.actual_price) = [n,6], dim(action) = [1, n+1]
+
+
+
+
+    '''
         action_type = action[0]
         buyAmount = action[1]
         sellAmount = action[2]
@@ -89,12 +144,13 @@ class StockTradingEnv(gym.Env):
         if action_type < 1:
             # [0,1): Buy amount % of balance in shares
             cash_spend = self.balance * buyAmount
-            if cash_spend < 0.01*self.net_worth: # Not executing this transaction
+            if cash_spend < 0.01*self.net_worth:  # Not executing this transaction
                 buyAmount = 0
                 cash_spend = 0
                 self.current_action = 0
             else:
-                shares_bought = cash_spend / (self.actual_price*(1+COMMISSION_FEE))
+                shares_bought = cash_spend / \
+                    (self.actual_price*(1+COMMISSION_FEE))
                 self.current_action = shares_bought
                 prev_cost = self.cost_basis * self.shares_held
 
@@ -108,18 +164,18 @@ class StockTradingEnv(gym.Env):
 
             shares_sold = self.shares_held * sellAmount
             cash_get = shares_sold*self.actual_price*(1-COMMISSION_FEE)
-            if cash_get < 0.001*self.net_worth: # Not executing this transaction
+            if cash_get < 0.001*self.net_worth:  # Not executing this transaction
                 sellAmount = 0
                 shares_sold = 0
                 cash_get = 0
                 self.current_action = 0
-            else: 
+            else:
                 self.current_action = shares_sold*-1
                 self.balance += shares_sold * self.actual_price
                 self.shares_held -= shares_sold
                 self.total_shares_sold += shares_sold
                 self.total_sales_value += shares_sold * self.actual_price
-        else: # [2,3): Hold
+        else:  # [2,3): Hold
             self.current_action = 0
 
         self.prev_net_worth = self.net_worth
@@ -130,6 +186,7 @@ class StockTradingEnv(gym.Env):
 
         if self.shares_held == 0:
             self.cost_basis = 0
+    '''
 
     def step(self, action):
         '''
@@ -143,11 +200,13 @@ class StockTradingEnv(gym.Env):
             if self.training:
                 self._take_action(action)
                 self.current_step = self.window_size  # Going back to time 0
-            else: # if is testing
+            else:  # if is testing
                 if not self.finished:
                     self.finished = True
-                    print("$$$$$$$$$$$ CASH OUT at time "+ str(self.df.loc[self.current_step, "Date"]) + "$$$$$$$$$$$")
-                    action = np.array([1,0,1]) # SELL EVERYTHING on the last day
+                    print("$$$$$$$$$$$ CASH OUT at time " +
+                          str(self.df.loc[self.current_step, "Date"]) + "$$$$$$$$$$$")
+                    # SELL EVERYTHING on the last day
+                    action = np.array([1, 0, 1])
                     self._take_action(action)
                     self.current_step += 1
                 else:
@@ -159,12 +218,10 @@ class StockTradingEnv(gym.Env):
             Updates self.balance, self.cost_basis, self.shares_held,
                     self.total_shares_sold, self.total_sales_value,
                     self.net_worth, self.max_net_worth, 
-            '''  
-            self.current_step += 1   
+            '''
+            self.current_step += 1
             # ****IMPORTANT: From now on, the current_step becomes TOMORROW****
-            # Keep the current_step undiscovered 
-        
-
+            # Keep the current_step undiscovered
 
         '''
         We want to incentivize profit that is sustained over long periods of time. 
@@ -177,37 +234,40 @@ class StockTradingEnv(gym.Env):
         rather than those who rapidly gain money using unsustainable strategies.
         '''
         self.prev_buyNhold_balance = self.buyNhold_balance
-        self.buyNhold_balance = self.init_buyNhold_amount * self.df.loc[self.current_step-1, "Price"]
-        
-        profit = self.net_worth - INITIAL_ACCOUNT_BALANCE
-        actual_profit = self.net_worth - self.buyNhold_balance
-        
+        self.buyNhold_balance = self.init_buyNhold_amount * \
+            self.df.loc[self.current_step-1, "Price"]
+
+        profit = self.total_net_worth - INITIAL_ACCOUNT_BALANCE
+        actual_profit = self.total_net_worth - self.buyNhold_balance
+
         delay_modifier = (self.current_step / MAX_STEPS)
         # reward = self.balance * delay_modifier  # Original Version
         # reward = actual_profit * delay_modifier  # Use Actual Net Profit
 
-        net_worth_delta = self.net_worth - self.prev_net_worth
+        net_worth_delta = self.total_net_worth - self.prev_net_worth
         buyNhold_delta = self.buyNhold_balance - self.prev_buyNhold_balance
         reward = (net_worth_delta+1)/(buyNhold_delta+1)
 
-        done = (self.net_worth <= 0) or self.finished_twice # OpenAI will reset if done==True
+        # OpenAI will reset if done==True
+        done = (self.total_net_worth <= 0) or self.finished_twice
         if not self.finished:
             obs = self._next_observation()
         else:
-            self.current_step-=1
+            self.current_step -= 1
             obs = self._next_observation()
-            self.current_step+=1
+            self.current_step += 1
 
         if not self.finished_twice:
-            info = {"profit": profit, "total_shares_sold": self.total_shares_sold, "actual_profit": actual_profit}
+            info = {"profit": profit, "total_shares_sold": self.total_shares_sold,
+                    "actual_profit": actual_profit}
         else:
             info = {"profit": 0, "total_shares_sold": 0, "actual_profit": 0}
         return (obs, reward, done, info)
 
     def reset(self):
         # Reset the state of the environment to an initial state
-        self.balance = INITIAL_ACCOUNT_BALANCE
-        self.net_worth = INITIAL_ACCOUNT_BALANCE
+        self.cash = INITIAL_ACCOUNT_BALANCE
+        self.total_net_worth = INITIAL_ACCOUNT_BALANCE
         self.max_net_worth = INITIAL_ACCOUNT_BALANCE
         self.shares_held = 0
         self.cost_basis = 0
@@ -218,7 +278,6 @@ class StockTradingEnv(gym.Env):
         self.prev_buyNhold_balance = 0
         self.finished = False
         self.finished_twice = False
-        
 
         # Set the current step to a random point within the data frame
         # We set the current step to a random point within the data frame, because it essentially gives our agent’s more unique experiences from the same data set.
@@ -227,8 +286,9 @@ class StockTradingEnv(gym.Env):
                 self.window_size, len(self.df.loc[:, 'Open'].values))
         else:
             self.current_step = self.window_size
-        
-        self.init_buyNhold_amount = INITIAL_ACCOUNT_BALANCE/self.df.loc[self.current_step, "Price"]
+
+        self.init_buyNhold_amount = INITIAL_ACCOUNT_BALANCE / \
+            self.df.loc[self.current_step, "Price"]
         self.buyNhold_balance = INITIAL_ACCOUNT_BALANCE
 
         return self._next_observation()
@@ -238,11 +298,12 @@ class StockTradingEnv(gym.Env):
         afterStep: if is rendered after the step function, the current_step should -=1.
         '''
         todayStep = self.current_step
-        if afterStep: todayStep -= 1
-            
-        if mode=='human':
+        if afterStep:
+            todayStep -= 1
+
+        if mode == 'human':
             # Render the environment to the screen
-            profit = self.net_worth - INITIAL_ACCOUNT_BALANCE
+            profit = self.total_net_worth - INITIAL_ACCOUNT_BALANCE
 
             print(f'Step: {todayStep}')
             print(f'Balance: {self.balance}')
@@ -253,9 +314,9 @@ class StockTradingEnv(gym.Env):
             print(
                 f'Net worth: {self.net_worth} (Max net worth: {self.max_net_worth})')
             print(f'Profit: {profit}')
-        
-        elif mode=='detail': # Want to add all transaction details
-            net_worth_delta = self.net_worth - self.prev_net_worth
+
+        elif mode == 'detail':  # Want to add all transaction details
+            net_worth_delta = self.total_net_worth - self.prev_net_worth
             buyNhold_delta = self.buyNhold_balance - self.prev_buyNhold_balance
             return {
                 "step": todayStep,
@@ -263,11 +324,10 @@ class StockTradingEnv(gym.Env):
                 "actual_price": self.actual_price,
                 "action": self.current_action,
                 "shares_held": self.shares_held,
-                "net_worth": self.net_worth,
+                "net_worth": self.total_net_worth,
                 "net_worth_delta": net_worth_delta,
                 "buyNhold_balance": self.buyNhold_balance,
                 "buyNhold_delta": buyNhold_delta,
-                "actual_profit": self.net_worth - self.buyNhold_balance,
+                "actual_profit": self.total_net_worth - self.buyNhold_balance,
                 "progress": (net_worth_delta+1)/(buyNhold_delta+1)
             }
-

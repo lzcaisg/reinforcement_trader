@@ -11,6 +11,8 @@
 - INITIAL_ACCOUNT_BALANCE = 10000
 
 ## 1. Original Attributes
+- self.startDate: start date for the process (Updated for Multiple Markets)
+
 - self.isTraining (boolean): Whether this class is used for training:
     - If so, the environment will go back to the start date when reaching to the end;
     - If not, the environment will stop when reaching the end.
