@@ -31,23 +31,23 @@ class StockTradingEnv(gym.Env):
             df.set_index('Date', inplace=True) # For Multiple Markets: Use Date as index
             self.df_list.append(df)
 
-        intersect_date = df_list[0].index
+        self.intersect_date = df_list[0].index
         for df in df_list:
-            intersect_date = np.intersect1d(intersect_date, df.index)
+            self.intersect_date = np.intersect1d(self.intersect_date, df.index)
         
-        self.start_date = np.min(intersect_date)
-        self.end_date = np.max(intersect_date)
+        self.start_date = np.min(self.intersect_date)
+        self.end_date = np.max(self.intersect_date)
         
         market_number = len(df_list)+1  # For Multiple Markets: Adding the CASH to the action
-        lower_bond = [0]*market_number
-        upper_bond = [1]*market_number
+        lower_bond = [0.0]*market_number
+        upper_bond = [1.0]*market_number
         self.action_space = spaces.Box(
             low=np.array(lower_bond), high=np.array(upper_bond), dtype=np.float16)
         # Give weight to each and we take the average later, the last Asset is the CASH
 
         # Prices contains the OHCL values for the last six prices
         self.observation_space = spaces.Box(
-            low=0, high=1, shape=(6, 6), dtype=np.float16)
+            low=0, high=1, shape=(market_number, 6, 6), dtype=np.float16)
 
     def _next_observation(self):
         '''
@@ -80,7 +80,7 @@ class StockTradingEnv(gym.Env):
                 df.loc[pd.date_range(self.current_date-pd.Timedelta(days=self.window_size), 
                     self.current_date-pd.Timedelta(days=1)),
                     'Vol'].values / MAX_NUM_SHARES,
-            ])
+            ], dtype=np.float64)
 
             # Append additional data and scale each value to between 0-1
             obs = np.append(frame, [[
@@ -101,7 +101,7 @@ class StockTradingEnv(gym.Env):
                 np.array([1]*self.window_size) / MAX_SHARE_PRICE,
                 np.array([1]*self.window_size) / MAX_SHARE_PRICE,
                 np.array([1]*self.window_size)
-            ])
+            ], dtype=np.float64)
 
         cash_obs = np.stack(cash_obs)
 
@@ -116,27 +116,25 @@ class StockTradingEnv(gym.Env):
 
         obs_list.append(cash_obs)
 
-        return np.array(obs_list)
+        return np.array(obs_list, dtype=np.float64)
 
     def _take_action(self, action):
         # Set the current price to a random price within the time step
         # dim(self.actual_price) = [n,6], dim(action) = [1, n+1]
         
-        self.actual_price = np.array([
-            random.uniform(df.loc[self.current_date, "Low"], df.loc[self.current_date, "High"]) 
-            if self.current_date in df.index
-            else np.nan 
-            for df in self.df_list].append(1)) # e.g.[np.nan, ]
+        self.actual_price = np.array([random.uniform(df.loc[self.current_date, "Low"], df.loc[self.current_date, "High"]) if self.current_date in df.index else np.nan for df in self.df_list], dtype=np.float64) # e.g.[np.nan, ]
+        self.actual_price = np.append(self.actual_price, 1)
         # Add CASH price = 1, now dim=n+1, MAY HAVE NAN
 
-        untradable_stock = np.isnan(self.actual_price)
+        untradable_stock = pd.isnull(self.actual_price)
         available_shares_value = self.actual_price * self.shares_held # dim:n+1, those with no price will be nan
-        available_action = action * (untradable_stock * -1 + 1)
+        available_action = action * (untradable_stock * -1 + 1) # For actions being nan, we should not change it
 
         available_action_weighted = available_action/np.nansum(available_action)
         available_shares_value_weighted = available_shares_value/np.nansum(available_shares_value)
         delta_weight = available_action_weighted - available_shares_value_weighted
-        
+        delta_weight[pd.isnull(delta_weight)] = 0
+
         delta_value = delta_weight * np.nansum(available_shares_value) # Buy or sell stocks worth of $x, exclusive of COMMISSION FEE
         delta_cash = delta_value[-1]
         delta_value[-1] = 0 # Remove the cash delta to avoid counting commission fee twice
@@ -147,19 +145,19 @@ class StockTradingEnv(gym.Env):
         
         sell_value *= -1
         sell_number = sell_value / (self.actual_price) # delta Cash == value, LESS CASH IS RECEIVED
-        cash_received_from_sale = sell_value*(1-COMMISSION_FEE)
+        cash_received_from_sale = np.nansum(sell_value*(1-COMMISSION_FEE))
         
         buy_number = buy_value / (self.actual_price * (1+COMMISSION_FEE)) # delta Cash == value, LESS STOCK IS BOUGHT due to the COMMISSION FEE
-        cash_paid_for_buying = buy_value
+        cash_paid_for_buying = np.nansum(buy_value)
         buy_value = buy_number * self.actual_price
 
         delta_cash = cash_received_from_sale - cash_paid_for_buying
         delta_value = buy_value-sell_value
-        delta_value[np.isnan(delta_value)] = 0
+        delta_value[pd.isnull(delta_value)] = 0
 
         delta_number = buy_number + sell_number
         delta_number[-1] = delta_cash
-        delta_number[np.isnan(delta_number)] = 0
+        delta_number[pd.isnull(delta_number)] = 0
 
         prev_cost = self.cost_basis * self.shares_held
         self.cost_basis = (prev_cost + delta_value) / (self.shares_held + delta_number)
@@ -169,7 +167,7 @@ class StockTradingEnv(gym.Env):
         self.total_shares_sold += sell_number
         self.prev_net_worth = self.net_worth
         self.net_worth = self.shares_held * self.actual_price
-        self.net_worth[np.isnan(self.net_worth)] = self.prev_net_worth[np.isnan(self.net_worth)]
+        self.net_worth[pd.isnull(self.net_worth)] = self.prev_net_worth[pd.isnull(self.net_worth)]
         # If the asset is not for trading, use the previous value
         self.prev_total_net_worth = self.total_net_worth
         self.total_net_worth = np.sum(self.net_worth)
@@ -276,12 +274,15 @@ class StockTradingEnv(gym.Env):
         rather than those who rapidly gain money using unsustainable strategies.
         '''
         
-        close_prices = np.array([
-            df.loc[self.current_date-pd.Timedelta(days = 1), "Price"] 
-            if self.current_date-pd.Timedelta(days = 1) in df.index
-            else np.nan 
-            for df in self.df_list].append(1))
-        close_prices[np.isnan(close_prices)] = self.prev_buyNhold_price[np.isnan(close_prices)]
+        close_prices = []
+        for df in self.df_list:
+            if (self.current_date-pd.Timedelta(days = 1)) in df.index:
+                close_prices.append(df.loc[self.current_date-pd.Timedelta(days = 1), "Price"])
+            else:
+                close_prices.append(np.nan)
+        close_prices.append(1)
+        close_prices = np.array(close_prices, dtype=np.float64)
+        close_prices[pd.isnull(close_prices)] = self.prev_buyNhold_price[pd.isnull(close_prices)]
         
         self.prev_buyNhold_balance = self.buyNhold_balance
         self.buyNhold_balance = np.sum(self.init_buyNhold_amount * close_prices)
@@ -294,10 +295,10 @@ class StockTradingEnv(gym.Env):
         # reward = self.balance * delay_modifier  # Original Version
         # reward = actual_profit * delay_modifier  # Use Actual Net Profit
 
-        net_worth_delta = self.total_net_worth - self.prev_net_worth
+        total_net_worth_delta = self.total_net_worth - self.prev_total_net_worth
         buyNhold_delta = self.buyNhold_balance - self.prev_buyNhold_balance
         
-        reward = (net_worth_delta+1)/(buyNhold_delta+1) # TODO: NEED TO Reengineer!!!
+        reward = (total_net_worth_delta+1)/(buyNhold_delta+1) # TODO: NEED TO Reengineer!!!
 
         # OpenAI will reset if done==True
         done = (self.total_net_worth <= 0) or self.finished_twice
@@ -335,6 +336,7 @@ class StockTradingEnv(gym.Env):
         
         self.net_worth = [0]*len(self.df_list)
         self.net_worth.append(INITIAL_ACCOUNT_BALANCE)
+        self.net_worth = np.array(self.net_worth, dtype=np.float64)
         
         self.shares_held = self.net_worth
         self.total_shares_sold = self.net_worth
@@ -342,9 +344,11 @@ class StockTradingEnv(gym.Env):
         
         self.cost_basis = [0]*len(self.df_list)
         self.cost_basis.append(1)
+        self.cost_basis = np.array(self.cost_basis, dtype=np.float64)
 
-        self.total_sales_value = [0]*(len(self.df_list)+1)
-        self.current_action = [0]*(len(self.df_list)+1)
+
+        self.total_sales_value = np.array([0]*(len(self.df_list)+1), dtype=np.float64)
+        self.current_action = np.array([0]*(len(self.df_list)+1), dtype=np.float64)
         
 
 
@@ -358,7 +362,8 @@ class StockTradingEnv(gym.Env):
             self.current_date = self.start_date + pd.Timedelta(days = self.window_size) # For Multiple Markets: Replace current_step with current_date
 
         init_price = [df.loc[self.start_date, "Price"] for df in self.df_list]
-        init_price = np.array(init_price)
+        init_price.append(1)
+        init_price = np.array(init_price, dtype=np.float64)
 
         self.prev_buyNhold_price = init_price
         self.init_buyNhold_amount = (INITIAL_ACCOUNT_BALANCE/len(init_price)) / init_price
@@ -379,7 +384,7 @@ class StockTradingEnv(gym.Env):
             profit = self.total_net_worth - INITIAL_ACCOUNT_BALANCE
 
             print(f'Date: {todayDate}')
-            print(f'Balance: {self.balance}')
+            print(f'Balance: {self.cash}')
             print(
                 f'Shares held: {self.shares_held} (Total sold: {self.total_shares_sold})')
             print(

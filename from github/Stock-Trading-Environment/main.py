@@ -63,8 +63,8 @@ final_result = []
 
 # ============ Number of days trained =============
 REPEAT_NO = 10
-tstep = 50000
-# tstep = 100
+# tstep = 50000
+tstep = 100
 
 
 for modelNo in range(REPEAT_NO):
@@ -72,7 +72,9 @@ for modelNo in range(REPEAT_NO):
     act_profit_list = []
     detail_list = []
     model = PPO2(MlpPolicy, trainEnv, verbose=1)
-    model.learn(total_timesteps=tstep, log_interval=256)
+    # model.learn(total_timesteps=tstep, log_interval=256)
+    model.learn(total_timesteps=tstep)
+
 
     obs = testEnv.reset()
 
