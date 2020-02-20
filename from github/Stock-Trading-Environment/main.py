@@ -16,12 +16,12 @@ import pprint
 from os import path
 
 
-SAVE_DIR = "./output/100"
-common_fileName_prefix = "sp500+dax+hk_0k-Training"
-summary_fileName_suffix = "summary.out"
+SAVE_DIR = "./output/101"
+common_fileName_prefix = "sp500+dax+hk-Training"
+summary_fileName_suffix = "summary-X.out"
 detail_fileName_suffix = "detailed-ModelNo-X.out"
 
-summary_fileName = common_fileName_prefix+'_'+summary_fileName_suffix
+summary_fileName_model = common_fileName_prefix+'_'+summary_fileName_suffix
 detail_fileName_model = common_fileName_prefix+'_'+detail_fileName_suffix
 
 # df = pd.read_csv('./data/AAPL.csv')
@@ -44,7 +44,7 @@ testEndDate = pd.to_datetime("2019-12-31")
 
 for name in df_namelist:
     df = csv2df(rootDir, name, source = "yahoo")
-    df = df.sort_values('Date')
+    df = df.sort_values('Date').dropna()
     df = df.reset_index(drop=True)
 
     train_df = df[(df['Date'] >= trainStartDate) & (df['Date'] <= trainEndDate)]
@@ -63,65 +63,67 @@ final_result = []
 
 # ============ Number of days trained =============
 REPEAT_NO = 10
-# tstep = 50000
-tstep = 100
+tstep_list = [50000, 100000]
+# tstep = 100
+
+for tstep in tstep_list:
+    summary_fileName = summary_fileName_model[:-5] +str(tstep) + '-' +str(modelNo) + ".out"
+    for modelNo in range(REPEAT_NO):
+        profit_list = []
+        act_profit_list = []
+        detail_list = []
+        model = PPO2(MlpPolicy, trainEnv, verbose=1)
+        model.learn(total_timesteps=tstep, log_interval=256)
+        # model.learn(total_timesteps=tstep)
 
 
-for modelNo in range(REPEAT_NO):
-    profit_list = []
-    act_profit_list = []
-    detail_list = []
-    model = PPO2(MlpPolicy, trainEnv, verbose=1)
-    # model.learn(total_timesteps=tstep, log_interval=256)
-    model.learn(total_timesteps=tstep)
+        obs = testEnv.reset()
 
-
-    obs = testEnv.reset()
-
-    # Test for consecutive 2000 days
-    for testNo in range(365*5):
-        action, _states = model.predict(obs)
-        obs, rewards, done, info = testEnv.step(action)
-        if done:
-            print("Done")
-            break
-        profit_list.append(info[0]['profit'])
-        act_profit_list.append(info[0]['actual_profit'])
-        singleDay_record = testEnv.render(mode="detail")
-        singleDay_record['testNo'] = testNo
-        if done:
+        # Test for consecutive 2000 days
+        for testNo in range(365*5):
+            action, _states = model.predict(obs)
+            if np.isnan(action).any():
+                raise Exception("Action NAN WARNING!")
+            obs, rewards, done, info = testEnv.step(action)
+            if done:
+                print("Done")
+                break
+            profit_list.append(info[0]['profit'])
+            act_profit_list.append(info[0]['actual_profit'])
+            singleDay_record = testEnv.render(mode="detail")
+            singleDay_record['testNo'] = testNo
             detail_list.append(singleDay_record)
 
-        if testNo%365 == 0:
-            print("\n============= TESTING "+str(testNo)+" =============\n")
-            testEnv.render()
+            if testNo%365 == 0:
+                print("\n============= TESTING "+str(testNo)+" =============\n")
+                testEnv.render()
 
 
-        
+            
 
-    detail_fileName = detail_fileName_model[:-5] + str(modelNo) + detail_fileName_model[-4:]
-    pickle.dump(detail_list, open(path.join(SAVE_DIR, detail_fileName), "wb"))
+        detail_fileName = detail_fileName_model[:-5] +str(tstep) + '-' +str(modelNo) + detail_fileName_model[-4:]
+        pickle.dump(detail_list, open(path.join(SAVE_DIR, detail_fileName), "wb"))
 
-    final_result.append({
-        "trainStart": trainStartDate,
-        "trainEnd": trainEndDate,
-        "testStart": testStartDate,
-        "testEnd": testEndDate,
-        "train_step": tstep,
-        "mean": np.mean(profit_list),
-        "max": np.max(profit_list),
-        "min": np.min(profit_list),
-        "std": np.std(profit_list),
-        "final": profit_list[-1],
-        "act_mean": np.mean(act_profit_list),
-        "act_max": np.max(act_profit_list),
-        "act_min": np.min(act_profit_list),
-        "act_std": np.std(act_profit_list),
-        "act_final": act_profit_list[-1],
-        "total_shares_sold": info[0]['total_shares_sold']
-    })
-    pickle.dump(final_result, open(path.join(SAVE_DIR, summary_fileName), "wb"))
-    print("********* LENTH: ", len(final_result), " *********")
-    pprint.pprint (final_result[-1])
+        final_result.append({
+            "trainStart": trainStartDate,
+            "trainEnd": trainEndDate,
+            "testStart": testStartDate,
+            "testEnd": testEndDate,
+            "train_step": tstep,
+            "mean": np.mean(profit_list),
+            "max": np.max(profit_list),
+            "min": np.min(profit_list),
+            "std": np.std(profit_list),
+            "final": profit_list[-1],
+            "act_mean": np.mean(act_profit_list),
+            "act_max": np.max(act_profit_list),
+            "act_min": np.min(act_profit_list),
+            "act_std": np.std(act_profit_list),
+            "act_final": act_profit_list[-1],
+            "total_shares_sold": info[0]['total_shares_sold']
+        })
+        pickle.dump(final_result, open(path.join(SAVE_DIR, summary_fileName), "wb"))
+        print("********* LENTH: ", len(final_result), " *********")
+        pprint.pprint (final_result[-1])
 
         
