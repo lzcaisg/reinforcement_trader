@@ -36,7 +36,6 @@ class StockTradingEnv(gym.Env):
         self.start_date = np.min(self.intersect_dates)
         self.end_date = np.max(self.intersect_dates)
 
-        self.df_list = []
         for df in df_list:
             self.df_list.append(df[df['Date'].isin(self.intersect_dates)].reset_index(drop=True))
 
