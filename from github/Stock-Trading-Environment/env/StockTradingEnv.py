@@ -26,11 +26,13 @@ class StockTradingEnv(gym.Env):
         self.window_size = 6
         self.df_list = []
 
-
+        df_list[0].dropna(inplace = True)
         self.intersect_dates = df_list[0]['Date']
-        for df in df_list:
+        for df in df_list[1:]:
+            df.dropna(inplace = True)
             self.intersect_dates = np.intersect1d(self.intersect_dates, df['Date'])
-
+        # Remove all NAN in the df
+        
         self.start_date = np.min(self.intersect_dates)
         self.end_date = np.max(self.intersect_dates)
 
@@ -44,8 +46,7 @@ class StockTradingEnv(gym.Env):
         lower_bond = np.array(lower_bond)
         lower_bond = np.reshape(lower_bond, (1,-1))
 
-        upper_bond = [[3.0]*self.market_number]
-        upper_bond += [[1.0]*self.market_number]*2
+        upper_bond = [[1.0]*self.market_number]*3
         upper_bond = np.array(upper_bond)
         upper_bond = np.reshape(upper_bond, (1,-1))
 
@@ -89,12 +90,12 @@ class StockTradingEnv(gym.Env):
 
             # Append additional data and scale each value to between 0-1
             obs = np.append(frame, [[
-                self.cash / MAX_ACCOUNT_BALANCE,
-                self.total_net_worth / MAX_ACCOUNT_BALANCE,
-                self.net_worth[i] / MAX_ACCOUNT_BALANCE,
-                self.inventory_number[i] / MAX_NUM_SHARES,
-                self.cost_basis[i] / MAX_SHARE_PRICE,
-                self.total_shares_sold[i] / MAX_NUM_SHARES,
+                self.cash / INITIAL_ACCOUNT_BALANCE,
+                self.total_net_worth / INITIAL_ACCOUNT_BALANCE,
+                self.net_worth[i] / INITIAL_ACCOUNT_BALANCE,
+                self.cost_basis[i] / INITIAL_ACCOUNT_BALANCE,
+                self.total_sales_value[i] / MAX_NUM_SHARES,
+                0.0
             ]], axis=0)
 
             obs_list.append(obs)
@@ -110,12 +111,12 @@ class StockTradingEnv(gym.Env):
         cash_obs = np.stack(cash_obs)
 
         cash_obs = np.append(cash_obs, [[
-            self.cash / MAX_ACCOUNT_BALANCE,
-            self.total_net_worth / MAX_ACCOUNT_BALANCE,
-            self.cash / MAX_ACCOUNT_BALANCE,
+            self.cash / INITIAL_ACCOUNT_BALANCE,
+            self.total_net_worth / INITIAL_ACCOUNT_BALANCE,
+            self.cash / INITIAL_ACCOUNT_BALANCE,
+            1 / INITIAL_ACCOUNT_BALANCE,
             self.cash / MAX_NUM_SHARES,
-            1 / MAX_SHARE_PRICE,
-            self.cash / MAX_NUM_SHARES,
+            0.0
         ]], axis=0)
 
         obs_list.append(cash_obs)
@@ -124,7 +125,9 @@ class StockTradingEnv(gym.Env):
         obs_array[pd.isna(obs_array)] = 0
         obs_array[np.isinf(obs_array)] = 1
 
-        return np.array(obs_list, dtype=np.float64)
+        self.backup_obs = np.array(obs_list, dtype=np.float64)
+
+        return self.backup_obs
 
     def _take_action(self, action):
         # Set the current price to a random price within the time step
@@ -135,15 +138,19 @@ class StockTradingEnv(gym.Env):
         self.actual_price = np.append(self.actual_price, 1)
         # Add CASH price = 1, now dim=n+1
         self.actual_price[pd.isna(self.actual_price)] = self.prev_buyNhold_price[pd.isna(self.actual_price)]
-        
+        tradable_asset = (pd.isna(self.actual_price).astype(int))*(-1)+1
+
         action = np.reshape(action, (3,-1))
 
-        action_type = np.floor(action[0]).astype(int)
+        action_type = np.floor(action[0]*2.99).astype(int)*tradable_asset
         self.current_action = action_type
+        
         sell_percent = action[1] * (action_type == 1)
+        
         buy_percent = action[2] * (action_type == 2)
-        extra_cash = 1-np.sum(buy_percent)
-        buy_percent[-1] += extra_cash
+        if np.nansum(buy_percent) > 1:
+            buy_percent = buy_percent/np.nansum(buy_percent)
+        
 
         '''
         Updated on 20 Feb.
@@ -157,6 +164,8 @@ class StockTradingEnv(gym.Env):
         '''
 
         # dim:n+1, those with no price will be nan
+        
+        
         inventory_value = self.actual_price * self.inventory_number
         
         sell_number = self.inventory_number * sell_percent
@@ -166,14 +175,23 @@ class StockTradingEnv(gym.Env):
         cash_from_sale = np.sum(sell_value) * (1-COMMISSION_FEE)
         cash_from_sale += inventory_value[-1] * sell_percent[-1] * COMMISSION_FEE # NO commission fee for "selling" the CASH
 
+        extra_cash_percent = 1-np.nansum(buy_percent)
         buy_value = cash_from_sale * buy_percent * (1-COMMISSION_FEE)
         buy_value[-1] += cash_from_sale * buy_percent[-1] * COMMISSION_FEE
+        buy_value[-1] += cash_from_sale * extra_cash_percent
         buy_number = buy_value / self.actual_price
 
         
+        self.total_sales_value += sell_value
+
         prev_cost = self.cost_basis * self.inventory_number
-        
         self.inventory_number = inv_number_after_sell + buy_number
+        
+        if np.isnan(self.inventory_number).any():
+            self.inventory_number = self.back_up_inv
+        else:
+            self.back_up_inv = self.inventory_number
+
         a = (prev_cost - sell_value + buy_value)
         b = self.inventory_number
         self.cost_basis = np.divide(a, b, out=np.zeros_like(a), where=b!=0)
@@ -182,8 +200,7 @@ class StockTradingEnv(gym.Env):
         self.cost_basis[np.isinf(self.cost_basis)] = 0
         
         self.cash = self.inventory_number[-1]
-        self.total_shares_sold += self.inventory_number * sell_percent
-
+        
         self.prev_net_worth = self.net_worth
         self.net_worth = self.inventory_number * self.actual_price
         
@@ -253,6 +270,11 @@ class StockTradingEnv(gym.Env):
         At each step we will take the specified action (chosen by our model), 
         calculate the reward, and return the next observation.
         '''
+
+        if np.isnan(action).any():
+            action = np.nan_to_num(action)
+                
+
         # 1. Determine TODAY's Date (For training)
         if self.current_step >= len(self.intersect_dates)-1:
             # if self.training:
@@ -335,7 +357,7 @@ class StockTradingEnv(gym.Env):
             self.current_step += 1
 
         if not self.finished_twice:
-            info = {"profit": profit, "total_shares_sold": self.total_shares_sold,
+            info = {"profit": profit, "total_shares_sold": self.total_sales_value,
                     "actual_profit": actual_profit}
         else:
             info = {"profit": 0, "total_shares_sold": 0, "actual_profit": 0}
@@ -343,7 +365,7 @@ class StockTradingEnv(gym.Env):
 
     def reset(self):
         # Reset the state of the environment to an initial state
-        self.cash = INITIAL_ACCOUNT_BALANCE
+        self.cash = INITIAL_ACCOUNT_BALANCE / self.market_number
         self.total_net_worth = INITIAL_ACCOUNT_BALANCE
         self.prev_total_net_worth = INITIAL_ACCOUNT_BALANCE
         self.max_net_worth = INITIAL_ACCOUNT_BALANCE
@@ -353,20 +375,15 @@ class StockTradingEnv(gym.Env):
         self.finished = False
         self.finished_twice = False
 
-        self.net_worth = [0.0]*(self.market_number-1)
-        self.net_worth.append(INITIAL_ACCOUNT_BALANCE)
-        self.net_worth = np.array(self.net_worth, dtype=np.float64)
+        self.net_worth = np.array(
+            [INITIAL_ACCOUNT_BALANCE / self.market_number] * self.market_number, 
+            dtype=np.float64)
 
-        self.inventory_number = self.net_worth
-        self.total_shares_sold = self.net_worth
+        
+        
+        self.total_sales_value = np.array([0.0] * self.market_number)
         self.prev_net_worth = self.net_worth
 
-        self.cost_basis = [0.0]*(self.market_number-1)
-        self.cost_basis.append(1)
-        self.cost_basis = np.array(self.cost_basis, dtype=np.float64)
-
-        self.total_sales_value = np.array(
-            [0.0]*self.market_number, dtype=np.float64)
         self.current_action = np.array(
             [0.0]*self.market_number, dtype=np.float64)
 
@@ -387,6 +404,12 @@ class StockTradingEnv(gym.Env):
         self.init_buyNhold_amount = (INITIAL_ACCOUNT_BALANCE/self.market_number) / init_price
         self.buyNhold_balance = INITIAL_ACCOUNT_BALANCE
 
+        self.inventory_number = self.init_buyNhold_amount
+        self.back_up_inv = self.inventory_number
+        self.cost_basis = init_price
+
+
+
         return self._next_observation()
 
     def render(self, mode='human', close=False, afterStep=True):
@@ -404,11 +427,11 @@ class StockTradingEnv(gym.Env):
             print(f'Date: {todayDate}')
             print(f'Balance: {self.cash}')
             print(
-                f'Shares held: {self.inventory_number} (Total sold: {self.total_shares_sold})')
+                f'Shares held: {self.inventory_number}')
             print(
                 f'Avg cost for held shares: {self.cost_basis} (Total sales value: {self.total_sales_value})')
             print(
-                f'Net worth: {self.net_worth} (Max net worth: {self.max_net_worth})')
+                f'Net worth: {self.net_worth} (Total net worth: {self.total_net_worth})')
             print(f'Profit: {profit}')
 
         elif mode == 'detail':  # Want to add all transaction details

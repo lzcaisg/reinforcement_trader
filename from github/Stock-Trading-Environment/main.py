@@ -16,7 +16,7 @@ import pprint
 from os import path
 
 
-SAVE_DIR = "./output/101"
+SAVE_DIR = "./output/100"
 common_fileName_prefix = "sp500+dax+hk-Training"
 summary_fileName_suffix = "summary-X.out"
 detail_fileName_suffix = "detailed-ModelNo-X.out"
@@ -59,21 +59,22 @@ for name in df_namelist:
 # The algorithms require a vectorized environment to run
 trainEnv = DummyVecEnv([lambda: StockTradingEnv(train_df_list,  isTraining=True)])
 testEnv = DummyVecEnv([lambda: StockTradingEnv(test_df_list, isTraining=False)])
-final_result = []
+
 
 # ============ Number of days trained =============
 REPEAT_NO = 10
 tstep_list = [50000, 100000]
-# tstep = 100
+# tstep_list = [10000]
 
 for tstep in tstep_list:
-    summary_fileName = summary_fileName_model[:-5] +str(tstep) + '-' +str(modelNo) + ".out"
+    final_result = []
+    summary_fileName = summary_fileName_model[:-5] +str(tstep) + ".out"
     for modelNo in range(REPEAT_NO):
         profit_list = []
         act_profit_list = []
         detail_list = []
         model = PPO2(MlpPolicy, trainEnv, verbose=1)
-        model.learn(total_timesteps=tstep, log_interval=256)
+        model.learn(total_timesteps=tstep, log_interval=32)
         # model.learn(total_timesteps=tstep)
 
 
@@ -82,8 +83,7 @@ for tstep in tstep_list:
         # Test for consecutive 2000 days
         for testNo in range(365*5):
             action, _states = model.predict(obs)
-            if np.isnan(action).any():
-                raise Exception("Action NAN WARNING!")
+
             obs, rewards, done, info = testEnv.step(action)
             if done:
                 print("Done")
