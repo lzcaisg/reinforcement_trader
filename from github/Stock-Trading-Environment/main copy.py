@@ -2,28 +2,22 @@ import gym
 import json
 import datetime as dt
 import pickle
-import ta
 
 from stable_baselines.common.policies import MlpPolicy
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines import PPO2
 
-from env.RebalancingEnv import RebalancingEnv
+from env.StockTradingEnv import StockTradingEnv
 
 import pandas as pd
 import numpy as np
 from CSVUtils import csv2df
 import pprint
-import os
 from os import path
 
 
-SAVE_DIR = "./output/202"
-import os
-if not os.path.exists(SAVE_DIR):
-    os.makedirs(SAVE_DIR)
-
-common_fileName_prefix = "BRZ+TW+NASDAQ-Training"
+SAVE_DIR = "./output/100"
+common_fileName_prefix = "sp500+dax+hk-Training"
 summary_fileName_suffix = "summary-X.out"
 detail_fileName_suffix = "detailed-ModelNo-X.out"
 
@@ -33,60 +27,38 @@ detail_fileName_model = common_fileName_prefix+'_'+detail_fileName_suffix
 trainYears = 10
 testYears = 5
 
-
-df_namelist = {"high": "^BVSP", "mid": "^TWII", "low": "^IXIC"}
-
+df_namelist = ['^GSPC.csv', '^GDAXI.csv', '^HSI.csv']
 rootDir = "./data"
-train_df_dict   = {"high": pd.DataFrame(), "mid": pd.DataFrame(), "low": pd.DataFrame()}
-test_df_dict    = {"high": pd.DataFrame(), "mid": pd.DataFrame(), "low": pd.DataFrame()}
+train_df_list = []
+test_df_list = []
+trainStartDate = pd.to_datetime("2004-01-01")
+trainEndDate = pd.to_datetime("2013-12-31")
 
-trainStartDate  = pd.to_datetime("2005-01-01")
-trainEndDate    = pd.to_datetime("2014-12-31")
+testStartDate = pd.to_datetime("2015-01-01")
+testEndDate = pd.to_datetime("2019-12-31")
 
-testStartDate   = pd.to_datetime("2015-01-01")
-testEndDate     = pd.to_datetime("2019-12-31")
-
-for key in df_namelist:
-    fileName = df_namelist[key]+".csv"
-    df = csv2df(rootDir, fileName, source = "yahoo")
-
-    df['EMA'] = df['Price'].ewm(span=15).mean()
-    df['MACD_diff'] = ta.trend.macd_diff(df['Price'])
-    macd_direction = df['MACD_diff']/np.abs(df['MACD_diff']) # 1: No change, -1: Change Sign
-    df['MACD_change'] = (-1*macd_direction*macd_direction.shift(1)+1)/2 # 1: Change Sign, 0: No Change
-
-    # delta_time: How many days since the last trend change
-    delta_time = [] 
-    for i in df['MACD_change']:
-        if len(delta_time) == 0:
-            result = 0
-        elif i==0:
-            result = delta_time[-1]+1
-        else: #Nan or 1
-            result = 0
-        delta_time.append(result)
-    df['delta_time'] = delta_time
-
-    # Clean up all the nans
+for name in df_namelist:
+    df = csv2df(rootDir, name, source = "yahoo")
     df = df.sort_values('Date').dropna()
     df = df.reset_index(drop=True)
 
     train_df = df[(df['Date'] >= trainStartDate) & (df['Date'] <= trainEndDate)]
-    test_df  = df[(df['Date'] >= testStartDate)  & (df['Date'] <= testEndDate)]
+    test_df = df[(df['Date'] >= testStartDate) & (df['Date'] <= testEndDate)]
 
-    train_df_dict[key] = train_df
-    test_df_dict[key]  = test_df
+    train_df_list.append(train_df)
+    test_df_list.append(test_df)
 
-col_list = ['EMA', 'MACD_diff', 'delta_time']
+
+# print (test_df)
+
 # The algorithms require a vectorized environment to run
-trainEnv = DummyVecEnv([lambda: RebalancingEnv(df_dict=train_df_dict, col_list=col_list, isTraining=True)])
-testEnv  = DummyVecEnv([lambda: RebalancingEnv(df_dict=test_df_dict, col_list=col_list, isTraining=False)])
+trainEnv = DummyVecEnv([lambda: StockTradingEnv(train_df_list,  isTraining=True)])
+testEnv = DummyVecEnv([lambda: StockTradingEnv(test_df_list, isTraining=False)])
 
 
 # ============ Number of days trained =============
 REPEAT_NO = 10
-# tstep_list = [50000, 100000]
-tstep_list = [500000, 1000000]
+tstep_list = [50000, 100000]
 # tstep_list = [10000]
 
 for tstep in tstep_list:
@@ -97,7 +69,7 @@ for tstep in tstep_list:
         act_profit_list = []
         detail_list = []
         model = PPO2(MlpPolicy, trainEnv, verbose=1)
-        model.learn(total_timesteps=tstep, log_interval=256)
+        model.learn(total_timesteps=tstep, log_interval=32)
         # model.learn(total_timesteps=tstep)
 
 
