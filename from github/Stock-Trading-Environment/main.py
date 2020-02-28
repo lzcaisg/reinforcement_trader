@@ -18,7 +18,7 @@ import os
 from os import path
 
 
-SAVE_DIR = "./output/202"
+SAVE_DIR = "./output/203"
 import os
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
@@ -86,8 +86,8 @@ testEnv  = DummyVecEnv([lambda: RebalancingEnv(df_dict=test_df_dict, col_list=co
 # ============ Number of days trained =============
 REPEAT_NO = 10
 # tstep_list = [50000, 100000]
-tstep_list = [500000, 1000000]
-# tstep_list = [10000]
+# tstep_list = [500000, 1000000]
+tstep_list = [500000]
 
 for tstep in tstep_list:
     final_result = []

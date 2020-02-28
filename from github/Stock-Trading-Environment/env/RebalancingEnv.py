@@ -25,7 +25,10 @@ class RebalancingEnv(gym.Env):
         self.training = isTraining
         self.col_list = col_list
         self.window_size = 6
-        self.wait_days = 10
+        self.wait_days = 10 
+        # wait_days: Number of days need to wait for determine the reward.
+        self.action_freq = 7
+        # Take action for every 7 days.
         self.df_list = []
         # Determine the number of markets
         self.market_number = len(df_dict)
@@ -167,22 +170,9 @@ class RebalancingEnv(gym.Env):
                     self.total_shares_sold, self.total_sales_value,
                     self.net_worth, self.max_net_worth, 
         '''
-        
-        # 3. Determine TODAY's Date (For training): If reaches the end then go back to time 0.
-        if self.current_step >= len(self.intersect_dates)-self.wait_days-2:
-            if self.training:
-                self.current_step = self.window_size  # Going back to time 0
-            else:  # if is testing: Stop iteratioin
-                self.finished = True
-        else:
-            # 1. Execute TODAY's Action
-            self.current_step += 1
-            
-            # ****IMPORTANT: From now on, the current_step becomes TOMORROW****
-            # Keep the current_step undiscovered
 
-        
-        close_prices = [df.loc[self.current_step-1, "Price"] for df in self.df_list]
+        # 3. Get the close price for TODAY        
+        close_prices = [df.loc[self.current_step, "Price"] for df in self.df_list]
         close_prices = np.array(close_prices, dtype=np.float64)
 
         self.prev_buyNhold_balance = self.buyNhold_balance
@@ -192,9 +182,8 @@ class RebalancingEnv(gym.Env):
 
         profit = self.total_net_worth - INITIAL_ACCOUNT_BALANCE
         actual_profit = self.total_net_worth - self.buyNhold_balance
-        
-        
-        
+
+
         # ============== Calculate Rewards ==============
         
         '''
@@ -209,21 +198,39 @@ class RebalancingEnv(gym.Env):
         passive_FV = self.prev_inventory_num * future_price # FV: Future Value
         current_FV = self.inventory_number * future_price
 
-
         delay_modifier = 1-(self.current_step / len(self.intersect_dates)*0.5)
         change_reward = np.sum(current_FV - passive_FV)/np.sum(passive_FV)*delay_modifier
         profit_reward = self.total_net_worth / 10000000
         reward = change_reward + profit_reward
 
+
+
+        # 3. Update Next Date: If reaches the end then go back to time 0.
+        last_step = len(self.intersect_dates)-self.wait_days-self.action_freq-1
+        if self.current_step >= last_step:
+            if self.training:
+                self.current_step = self.window_size  # Going back to time 0
+            else:  # if is testing: Stop iteratioin
+                self.current_step = last_step
+                self.finished = True
+        else:
+            # 1. Execute TODAY's Action
+            self.current_step += self.action_freq
+            
+            # ****IMPORTANT: From now on, the current_step becomes TOMORROW****
+            # Keep the current_step undiscovered
+        
+        
         # OpenAI will reset if done==True
         done = (self.total_net_worth <= 0) or self.finished
-
-        if not self.finished:
-            obs = self._next_observation()
-        else:
-            self.current_step -= 1
-            obs = self._next_observation()
-            self.current_step += 1
+        obs = self._next_observation()
+        
+        # if not self.finished:
+        #     obs = self._next_observation()
+        # else: # If already finished: 
+        #     self.current_step -= 1
+            # obs = self._next_observation()
+            # self.current_step += 1
 
         
         info = {"profit": profit, "total_shares_sold": self.total_sales_value, "actual_profit": actual_profit}
