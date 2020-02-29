@@ -18,12 +18,12 @@ import os
 from os import path
 
 
-SAVE_DIR = "./output/203"
+SAVE_DIR = "./output/204"
 import os
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
 
-common_fileName_prefix = "BRZ+TW+NASDAQ-Training"
+common_fileName_prefix = "BRZ+TW+NASDAQ-Training-punish"
 summary_fileName_suffix = "summary-X.out"
 detail_fileName_suffix = "detailed-ModelNo-X.out"
 
@@ -85,9 +85,9 @@ testEnv  = DummyVecEnv([lambda: RebalancingEnv(df_dict=test_df_dict, col_list=co
 
 # ============ Number of days trained =============
 REPEAT_NO = 10
-# tstep_list = [50000, 100000]
+tstep_list = [200000]
 # tstep_list = [500000, 1000000]
-tstep_list = [500000]
+# tstep_list = [500000]
 
 for tstep in tstep_list:
     final_result = []

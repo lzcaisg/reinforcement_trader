@@ -26,6 +26,7 @@ class RebalancingEnv(gym.Env):
         self.col_list = col_list
         self.window_size = 6
         self.wait_days = 10 
+        self.punish_no_action = True
         # wait_days: Number of days need to wait for determine the reward.
         self.action_freq = 7
         # Take action for every 7 days.
@@ -202,7 +203,14 @@ class RebalancingEnv(gym.Env):
         change_reward = np.sum(current_FV - passive_FV)/np.sum(passive_FV)*delay_modifier
         profit_reward = self.total_net_worth / 10000000
         reward = change_reward + profit_reward
-
+        
+        if self.punish_no_action:
+            if np.sum(one_hot_action) != 0:
+                self.zero_action_count = 0
+            else:
+                self.zero_action_count += 1
+                if self.zero_action_count >= 3:
+                    reward = 0
 
 
         # 3. Update Next Date: If reaches the end then go back to time 0.
@@ -259,6 +267,7 @@ class RebalancingEnv(gym.Env):
         self.max_net_worth = INITIAL_ACCOUNT_BALANCE
         self.prev_inventory_num = np.array([0.0,0.0,0.0])
         self.current_step = 0
+        self.zero_action_count = 0
 
         self.prev_buyNhold_balance = 0
         self.finished = False
