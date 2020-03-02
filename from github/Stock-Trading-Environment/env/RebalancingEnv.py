@@ -26,7 +26,7 @@ class RebalancingEnv(gym.Env):
         self.col_list = col_list
         self.window_size = 6
         self.wait_days = 10 
-        self.punish_no_action = True
+        self.punish_no_action = False
         # wait_days: Number of days need to wait for determine the reward.
         self.action_freq = 7
         # Take action for every 7 days.

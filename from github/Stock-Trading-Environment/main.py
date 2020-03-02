@@ -18,12 +18,12 @@ import os
 from os import path
 
 
-SAVE_DIR = "./output/204"
+SAVE_DIR = "./output/205"
 import os
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
 
-common_fileName_prefix = "BRZ+TW+NASDAQ-Training-punish"
+common_fileName_prefix = "TW+NASDAQ+BRZ-Training-swap-nopunish"
 summary_fileName_suffix = "summary-X.out"
 detail_fileName_suffix = "detailed-ModelNo-X.out"
 
@@ -34,8 +34,10 @@ trainYears = 10
 testYears = 5
 
 
-df_namelist = {"high": "^BVSP", "mid": "^TWII", "low": "^IXIC"}
+# df_namelist = {"high": "^BVSP", "mid": "^TWII", "low": "^IXIC"}
+df_namelist = {"high": "^TWII", "mid": "^IXIC", "low": "^BVSP"}
 
+#
 rootDir = "./data"
 train_df_dict   = {"high": pd.DataFrame(), "mid": pd.DataFrame(), "low": pd.DataFrame()}
 test_df_dict    = {"high": pd.DataFrame(), "mid": pd.DataFrame(), "low": pd.DataFrame()}
@@ -85,9 +87,9 @@ testEnv  = DummyVecEnv([lambda: RebalancingEnv(df_dict=test_df_dict, col_list=co
 
 # ============ Number of days trained =============
 REPEAT_NO = 10
-tstep_list = [200000,500000]
+# tstep_list = [200000,500000]
 # tstep_list = [500000, 1000000]
-# tstep_list = [500000]
+tstep_list = [100000]
 
 for tstep in tstep_list:
     final_result = []
