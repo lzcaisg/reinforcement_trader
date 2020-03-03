@@ -103,6 +103,8 @@ for tstep in tstep_list:
         model = PPO2(MlpPolicy, trainEnv, verbose=1)
         model.learn(total_timesteps=tstep, log_interval=256)
         # model.learn(total_timesteps=tstep)
+        model_name = common_fileName_prefix + str(tstep) + '-' +str(modelNo) + "-model.model"
+        model.save(path.join(SAVE_DIR, model_name), cloudpickle=True)
 
 
         obs = testEnv.reset()
@@ -128,7 +130,7 @@ for tstep in tstep_list:
 
             
 
-        detail_fileName = detail_fileName_model[:-5] +str(tstep) + '-' +str(modelNo) + detail_fileName_model[-4:]
+        detail_fileName = detail_fileName_model[:-5] + str(tstep) + '-' +str(modelNo) + detail_fileName_model[-4:]
         pickle.dump(detail_list, open(path.join(SAVE_DIR, detail_fileName), "wb"))
 
         final_result.append({
