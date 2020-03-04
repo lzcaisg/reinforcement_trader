@@ -89,8 +89,8 @@ testEnv  = DummyVecEnv([lambda: RebalancingEnv(df_dict=test_df_dict, col_list=co
 REPEAT_NO = 10
 # tstep_list = [200000,500000]
 # tstep_list = [500000, 1000000]
-# tstep_list = [100000]
-tstep_list = [100]
+tstep_list = [100000]
+# tstep_list = [100]
 
 
 for tstep in tstep_list:
@@ -100,7 +100,7 @@ for tstep in tstep_list:
         profit_list = []
         act_profit_list = []
         detail_list = []
-        model = PPO2(MlpPolicy, trainEnv, verbose=1)
+        model = PPO2(MlpPolicy, trainEnv, verbose=1, tensorboard_log="./ppo2_cartpole_tensorboard/")
         model.learn(total_timesteps=tstep, log_interval=256)
         # model.learn(total_timesteps=tstep)
         model_name = common_fileName_prefix + str(tstep) + '-' +str(modelNo) + "-model.model"
