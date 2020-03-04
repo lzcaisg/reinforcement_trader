@@ -51,6 +51,7 @@ testEndDate     = pd.to_datetime("2019-12-31")
 for key in df_namelist:
     fileName = df_namelist[key]+".csv"
     df = csv2df(rootDir, fileName, source = "yahoo")
+    df = df.sort_values('Date').reset_index(drop=True)
 
     df['EMA'] = df['Price'].ewm(span=15).mean()
     df['MACD_diff'] = ta.trend.macd_diff(df['Price'])
@@ -70,7 +71,7 @@ for key in df_namelist:
     df['delta_time'] = delta_time
 
     # Clean up all the nans
-    df = df.sort_values('Date').dropna()
+    df = df.dropna()
     df = df.reset_index(drop=True)
 
     train_df = df[(df['Date'] >= trainStartDate) & (df['Date'] <= trainEndDate)]

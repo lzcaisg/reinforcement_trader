@@ -52,8 +52,10 @@ def csv2df(csv_path, csv_name, source = "investing"):
         csv_df['High'] = csv_df['High'].apply(unknown2float)
         csv_df['Low'] = csv_df['Low'].apply(unknown2float)
 
-        csv_df['Vol'] = csv_df['Vol.'].apply(volStr2int)
-        csv_df.drop("Vol.", axis=1, inplace=True)  # Since MongoDB does not accept column name with dot
+        # print(csv_df['Low'])
+        # if "Vol." in list(csv_df.columns):
+	       #  csv_df['Vol'] = csv_df['Vol.'].apply(volStr2int)
+	       #  csv_df.drop("Vol.", axis=1, inplace=True)  # Since MongoDB does not accept column name with dot
 
         csv_df['Change'] = csv_df['Change %'].apply(percent2float)
         csv_df.drop("Change %", axis=1, inplace=True)  # Since MongoDB does not accept column name with space and symbol
