@@ -67,5 +67,8 @@ def csv2df(csv_path, csv_name, source = "investing"):
         csv_df['Date'] = pd.to_datetime(csv_df['Date'])
         csv_df['Change'] = csv_df['Price'].pct_change()
     
+    elif source == "done":
+        csv_df['Date'] = pd.to_datetime(csv_df['Date'])
+        
     return csv_df
 

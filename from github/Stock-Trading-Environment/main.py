@@ -18,12 +18,12 @@ import os
 from os import path
 
 
-SAVE_DIR = "./output/206"
+SAVE_DIR = "./output/207"
 import os
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
 
-common_fileName_prefix = "BRZ+TW+NASDAQ-Training-swap-nopunish-7d"
+common_fileName_prefix = "BRZ_new+TW_new+NASDAQ-Training-nopunish-7d"
 summary_fileName_suffix = "summary-X.out"
 detail_fileName_suffix = "detailed-ModelNo-X.out"
 
@@ -34,7 +34,7 @@ trainYears = 10
 testYears = 5
 
 
-df_namelist = {"high": "^BVSP", "mid": "^TWII", "low": "^IXIC"}
+df_namelist = {"high": "^BVSP_new", "mid": "^TWII_new", "low": "^IXIC"}
 # df_namelist = {"high": "^TWII", "mid": "^IXIC", "low": "^BVSP"}
 
 #
@@ -50,7 +50,13 @@ testEndDate     = pd.to_datetime("2019-12-31")
 
 for key in df_namelist:
     fileName = df_namelist[key]+".csv"
-    df = csv2df(rootDir, fileName, source = "yahoo")
+    if df_namelist[key][-4:]=="_new":
+        source = "done"
+    else:
+        source = "yahoo"
+    df = csv2df(rootDir, fileName, source = source)
+    
+
     df = df.sort_values('Date').reset_index(drop=True)
 
     df['EMA'] = df['Price'].ewm(span=15).mean()
@@ -90,7 +96,7 @@ testEnv  = DummyVecEnv([lambda: RebalancingEnv(df_dict=test_df_dict, col_list=co
 REPEAT_NO = 10
 # tstep_list = [200000,500000]
 # tstep_list = [500000, 1000000]
-tstep_list = [100000]
+tstep_list = [80000]
 # tstep_list = [100]
 
 
@@ -101,7 +107,7 @@ for tstep in tstep_list:
         profit_list = []
         act_profit_list = []
         detail_list = []
-        model = PPO2(MlpPolicy, trainEnv, verbose=1, tensorboard_log="./ppo2_cartpole_tensorboard/")
+        model = PPO2(MlpPolicy, trainEnv, verbose=1, tensorboard_log="./ppo2_tensorboard/")
         model.learn(total_timesteps=tstep, log_interval=256)
         # model.learn(total_timesteps=tstep)
         model_name = common_fileName_prefix + str(tstep) + '-' +str(modelNo) + "-model.model"
