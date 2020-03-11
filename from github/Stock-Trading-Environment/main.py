@@ -8,7 +8,7 @@ from stable_baselines.common.policies import MlpPolicy
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines import PPO2
 
-from env.RebalancingEnv import RebalancingEnv
+from env.RebalancingWCurrNFreqEnv import RebalancingEnv
 
 import pandas as pd
 import numpy as np
@@ -18,12 +18,12 @@ import os
 from os import path
 
 
-SAVE_DIR = "./output/208"
+SAVE_DIR = "./output/300"
 import os
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
 
-common_fileName_prefix = "BRZ_new+TW_new+NASDAQ-Training-nopunish-7d"
+common_fileName_prefix = "BRZ_TW_NASDAQ-MultiRewardWithLeakage-7d"
 summary_fileName_suffix = "summary-X.out"
 detail_fileName_suffix = "detailed-ModelNo-X.out"
 
@@ -34,7 +34,7 @@ trainYears = 10
 testYears = 5
 
 
-df_namelist = {"high": "^BVSP_new", "mid": "^TWII_new", "low": "^IXIC"}
+df_namelist = {"high": "^BVSP_new", "mid": "^TWII_new", "low": "^IXIC_new"}
 # df_namelist = {"high": "^TWII", "mid": "^IXIC", "low": "^BVSP"}
 
 #
@@ -52,15 +52,17 @@ for key in df_namelist:
     fileName = df_namelist[key]+".csv"
     if df_namelist[key][-4:]=="_new":
         source = "done"
+        price_label = 'Actual Price'
     else:
         source = "yahoo"
+        price_label = 'Price'
     df = csv2df(rootDir, fileName, source = source)
     
 
     df = df.sort_values('Date').reset_index(drop=True)
 
-    df['EMA'] = df['Price'].ewm(span=15).mean()
-    df['MACD_diff'] = ta.trend.macd_diff(df['Price'])
+    df['EMA'] = df[price_label].ewm(span=15).mean()
+    df['MACD_diff'] = ta.trend.macd_diff(df[price_label])
     macd_direction = df['MACD_diff']/np.abs(df['MACD_diff']) # 1: No change, -1: Change Sign
     df['MACD_change'] = (-1*macd_direction*macd_direction.shift(1)+1)/2 # 1: Change Sign, 0: No Change
 
@@ -107,7 +109,7 @@ for tstep in tstep_list:
         profit_list = []
         act_profit_list = []
         detail_list = []
-        model = PPO2(MlpPolicy, trainEnv, verbose=1, tensorboard_log="./ppo2_tensorboard/")
+        model = PPO2(MlpPolicy, trainEnv, verbose=1, tensorboard_log="./0311_tensorboard/")
         model.learn(total_timesteps=tstep, log_interval=256)
         # model.learn(total_timesteps=tstep)
         model_name = common_fileName_prefix + str(tstep) + '-' +str(modelNo) + "-model.model"

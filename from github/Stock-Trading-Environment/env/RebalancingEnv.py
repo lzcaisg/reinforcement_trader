@@ -202,6 +202,7 @@ class RebalancingEnv(gym.Env):
         delay_modifier = 1-(self.current_step / len(self.intersect_dates)*0.5)
         change_reward = np.sum(current_FV - passive_FV)/np.sum(passive_FV)*delay_modifier
         profit_reward = self.total_net_worth / 10000000
+        
         reward = change_reward + profit_reward
         
         if self.punish_no_action:

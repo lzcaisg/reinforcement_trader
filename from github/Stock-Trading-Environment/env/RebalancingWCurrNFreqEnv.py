@@ -25,7 +25,7 @@ class RebalancingEnv(gym.Env):
         self.training = isTraining
         self.col_list = col_list
         self.window_size = 6
-        self.wait_days = 10 
+        self.wait_days = [10 , 30 , 180] 
         self.punish_no_action = False
         # wait_days: Number of days need to wait for determine the reward.
         self.action_freq = 7
@@ -167,13 +167,13 @@ class RebalancingEnv(gym.Env):
         # 2. Take Action. 
         self._take_action(action)
         '''
-            Updates self.balance, self.cost_basis, self.shares_held,
+            Updated self.balance, self.cost_basis, self.shares_held,
                     self.total_shares_sold, self.total_sales_value,
                     self.net_worth, self.max_net_worth, 
         '''
 
-        # 3. Get the close price for TODAY        
-        close_prices = [df.loc[self.current_step, "Price"] for df in self.df_list]
+        # 3. Get the close price for TODAY to calculate rewards    
+        close_prices = [df.loc[self.current_step, "Actual Price"] for df in self.df_list]
         close_prices = np.array(close_prices, dtype=np.float64)
 
         self.prev_buyNhold_balance = self.buyNhold_balance
@@ -188,21 +188,36 @@ class RebalancingEnv(gym.Env):
         # ============== Calculate Rewards ==============
         
         '''
-        1. See the total value in the future for this action
-        2. See the total value in the future if we dont take action
+        1. See the portfolio value in the future [10, 30, 180 days] for this action
+        2. See the portfolio value in the future if we dont take action
         '''
         # Calculate Benchmark Performances
-        # 1. Get the future price
-        future_price = [df.loc[self.current_step+self.wait_days, "Price"] for df in self.df_list]
-        future_price = np.array(future_price, dtype=np.float64)
+        # 1. Change Reward: The better off IN THE FUTURE for executing this action than doing nothing
+        reward_list = []
+        for days in self.wait_days:
+            future_step = self.current_step + days
+            
+            if self.current_step + days > len(self.intersect_dates) - 1:
+                future_step = len(self.intersect_dates) - 1
 
-        passive_FV = self.prev_inventory_num * future_price # FV: Future Value
-        current_FV = self.inventory_number * future_price
+            future_price = [df.loc[future_step, "Actual Price"] for df in self.df_list]
+            future_price = np.array(future_price, dtype=np.float64)
 
-        delay_modifier = 1-(self.current_step / len(self.intersect_dates)*0.5)
-        change_reward = np.sum(current_FV - passive_FV)/np.sum(passive_FV)*delay_modifier
-        profit_reward = self.total_net_worth / 10000000
-        reward = change_reward + profit_reward
+            passive_FV = self.prev_inventory_num * future_price # FV: Future Value
+            current_FV = self.inventory_number * future_price
+
+            delay_modifier = 1-(self.current_step / len(self.intersect_dates)*0.5)
+            change_reward = np.sum(current_FV - passive_FV)/np.sum(passive_FV)*delay_modifier
+            reward_list.append(change_reward)
+
+        profit_reward = self.total_net_worth / self.buyNhold_balance
+        reward_list.append(profit_reward)
+
+        leakage_today = np.mean([(df.loc[self.current_step, "Cum FX Change"] - 1 - COMMISSION_FEE) for df in self.df_list]) # Should be negative
+        reward_list.append(leakage_today)
+
+
+        reward = np.mean(reward_list)
         
         if self.punish_no_action:
             if np.sum(one_hot_action) != 0:
@@ -214,7 +229,7 @@ class RebalancingEnv(gym.Env):
 
 
         # 3. Update Next Date: If reaches the end then go back to time 0.
-        last_step = len(self.intersect_dates)-self.wait_days-self.action_freq-1
+        last_step = len(self.intersect_dates)-self.wait_days[0]-self.action_freq-1 
         if self.current_step >= last_step:
             if self.training:
                 self.current_step = self.window_size  # Going back to time 0
