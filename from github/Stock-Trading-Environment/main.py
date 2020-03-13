@@ -107,7 +107,7 @@ tstep_list = [100000]
 for tstep in tstep_list:
     final_result = []
     summary_fileName = summary_fileName_model[:-5] +str(tstep) + ".out"
-    for modelNo in range(REPEAT_NO):
+    for modelNo in range(8, REPEAT_NO):
         profit_list = []
         act_profit_list = []
         detail_list = []
