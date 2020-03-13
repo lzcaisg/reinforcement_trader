@@ -8,7 +8,7 @@ from stable_baselines.common.policies import MlpPolicy
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines import PPO2
 
-from env.RebalancingWCurrNFreqEnv import RebalancingEnv
+from env.MonthlyRebalancingEnv import RebalancingEnv
 
 import pandas as pd
 import numpy as np
@@ -18,12 +18,12 @@ import os
 from os import path
 
 
-SAVE_DIR = "./output/300"
+SAVE_DIR = "./output/303"
 import os
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
 
-common_fileName_prefix = "BRZ_TW_NASDAQ-MultiRewardWithLeakage-7d"
+common_fileName_prefix = "BRZ_TW_NASDAQ-Selected_Trans-7d"
 summary_fileName_suffix = "summary-X.out"
 detail_fileName_suffix = "detailed-ModelNo-X.out"
 
@@ -52,7 +52,9 @@ for key in df_namelist:
     fileName = df_namelist[key]+".csv"
     if df_namelist[key][-4:]=="_new":
         source = "done"
-        price_label = 'Actual Price'
+        # price_label = 'Actual Price'
+        price_label = 'Price'
+
     else:
         source = "yahoo"
         price_label = 'Price'
@@ -98,8 +100,8 @@ testEnv  = DummyVecEnv([lambda: RebalancingEnv(df_dict=test_df_dict, col_list=co
 REPEAT_NO = 10
 # tstep_list = [200000,500000]
 # tstep_list = [500000, 1000000]
-# tstep_list = [80000]
-tstep_list = [100]
+tstep_list = [100000]
+# tstep_list = [100000, 500000]
 
 
 for tstep in tstep_list:
@@ -109,8 +111,8 @@ for tstep in tstep_list:
         profit_list = []
         act_profit_list = []
         detail_list = []
-        model = PPO2(MlpPolicy, trainEnv, verbose=1, tensorboard_log="./0311_tensorboard/")
-        model.learn(total_timesteps=tstep, log_interval=256)
+        model = PPO2(MlpPolicy, trainEnv, verbose=1, tensorboard_log="/0313_"+str(tstep)+"_tensorboard/")
+        model.learn(total_timesteps=tstep, log_interval=128)
         # model.learn(total_timesteps=tstep)
         model_name = common_fileName_prefix + str(tstep) + '-' +str(modelNo) + "-model.model"
         model.save(path.join(SAVE_DIR, model_name), cloudpickle=True)
@@ -130,6 +132,7 @@ for tstep in tstep_list:
             act_profit_list.append(info[0]['actual_profit'])
             singleDay_record = testEnv.render(mode="detail")
             singleDay_record['testNo'] = testNo
+            singleDay_record['rewards'] = rewards[0]
             detail_list.append(singleDay_record)
 
             if testNo%365 == 0:

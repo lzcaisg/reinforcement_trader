@@ -81,57 +81,56 @@ class RebalancingEnv(gym.Env):
     def _take_action(self, action):
         # Set the current price to a random price within the time step
         # dim(self.actual_price) = [n,6], dim(action) = [1, n+1]
-
         self.actual_price = np.array([random.uniform(df.loc[self.current_step, "Low"],
-                                                     df.loc[self.current_step, "High"]) for df in self.df_list], dtype=np.float64)
+                                                    df.loc[self.current_step, "High"]) for df in self.df_list], dtype=np.float64)
+        if action != -1:
+            # self.actual_price[pd.isna(self.actual_price)] = self.prev_buyNhold_price[pd.isna(self.actual_price)]
+            rebalanced_weight = self.action_reference[action]
+            inventory_value = self.actual_price * self.inventory_number
+            rebalanced_inv_value = rebalanced_weight*np.sum(inventory_value) # Calculated rebalanced value, did not consider comission
+            
+            '''
+            Updated on 20 Feb.
+            1. Calculate the total cash from sell (including "selling cash", which means put the cash into the pool)
+            2. Calculate the amount of cash used to purchase asset (including "buying cash")
+            3. Calculate the number for buying
+            4. Update the inventory
+            '''
 
-        # self.actual_price[pd.isna(self.actual_price)] = self.prev_buyNhold_price[pd.isna(self.actual_price)]
-        rebalanced_weight = self.action_reference[action]
-        inventory_value = self.actual_price * self.inventory_number
-        rebalanced_inv_value = rebalanced_weight*np.sum(inventory_value) # Calculated rebalanced value, did not consider comission
-        
-        '''
-        Updated on 20 Feb.
-        1. Calculate the total cash from sell (including "selling cash", which means put the cash into the pool)
-        2. Calculate the amount of cash used to purchase asset (including "buying cash")
-        3. Calculate the number for buying
-        4. Update the inventory
-        '''
+            # Sell first, then use the cash to buy
+            sell_value = rebalanced_inv_value - inventory_value
+            sell_value[sell_value > 0] = 0
+            sell_value *= -1
+            
+            sell_number = sell_value / self.actual_price
+            inv_number_after_sell = self.inventory_number - sell_number
+            cash_from_sale = np.sum(sell_value) * (1-COMMISSION_FEE)
 
-        # Sell first, then use the cash to buy
-        sell_value = rebalanced_inv_value - inventory_value
-        sell_value[sell_value > 0] = 0
-        sell_value *= -1
-        
-        sell_number = sell_value / self.actual_price
-        inv_number_after_sell = self.inventory_number - sell_number
-        cash_from_sale = np.sum(sell_value) * (1-COMMISSION_FEE)
+            # Use the cash from sale to buy the stocks
+            buy_value = rebalanced_inv_value - inventory_value
+            buy_value[buy_value < 0] = 0
+            buy_weight = buy_value / np.sum(buy_value) # Normalize by the sum -> Indicate the percentage of money it can use
+            buy_number = cash_from_sale*(1-COMMISSION_FEE) * buy_weight / self.actual_price
 
-        # Use the cash from sale to buy the stocks
-        buy_value = rebalanced_inv_value - inventory_value
-        buy_value[buy_value < 0] = 0
-        buy_weight = buy_value / np.sum(buy_value) # Normalize by the sum -> Indicate the percentage of money it can use
-        buy_number = cash_from_sale*(1-COMMISSION_FEE) * buy_weight / self.actual_price
+            
+            self.total_sales_value += sell_value
+            self.prev_inventory_num = self.inventory_number
 
-        
-        self.total_sales_value += sell_value
-        self.prev_inventory_num = self.inventory_number
+            prev_cost = self.cost_basis * self.inventory_number
+            self.inventory_number = inv_number_after_sell + buy_number
+            
+            if np.isnan(self.inventory_number).any():
+                self.inventory_number = self.back_up_inv
+            else:
+                self.back_up_inv = self.inventory_number
 
-        prev_cost = self.cost_basis * self.inventory_number
-        self.inventory_number = inv_number_after_sell + buy_number
-        
-        if np.isnan(self.inventory_number).any():
-            self.inventory_number = self.back_up_inv
-        else:
-            self.back_up_inv = self.inventory_number
-
-        a = (prev_cost - sell_value + buy_value)
-        b = self.inventory_number
-        self.cost_basis = np.divide(a, b, out=np.zeros_like(a), where=b!=0)
-        
-        self.cost_basis[pd.isna(self.cost_basis)] = 0
-        self.cost_basis[np.isinf(self.cost_basis)] = 0
-        
+            a = (prev_cost - sell_value + buy_value)
+            b = self.inventory_number
+            self.cost_basis = np.divide(a, b, out=np.zeros_like(a), where=b!=0)
+            
+            self.cost_basis[pd.isna(self.cost_basis)] = 0
+            self.cost_basis[np.isinf(self.cost_basis)] = 0
+            
         self.prev_net_worth = self.net_worth
         self.net_worth = self.inventory_number * self.actual_price
         
@@ -159,8 +158,12 @@ class RebalancingEnv(gym.Env):
         
         self.prev_action = self.current_action
         self.current_action = one_hot_action
-        action = np.argmax(one_hot_action) 
-        # Returns the index of the max number, all same return 0 
+
+        if np.sum(one_hot_action) == 0:
+            action = -1 # NOT DOING ANYTHING
+        else:
+            action = np.argmax(one_hot_action) 
+        # Returns the index of the max number, all same return 0, all 0 return -1
         # => Choose Action 0-3, Default 0
                 
 
@@ -187,9 +190,26 @@ class RebalancingEnv(gym.Env):
 
         # ============== Calculate Rewards ==============
         
+
+        future_price = [df.loc[self.current_step+self.wait_days[0], "Actual Price"] for df in self.df_list]
+        future_price = np.array(future_price, dtype=np.float64)
+
+        passive_FV = self.prev_inventory_num * future_price # FV: Future Value
+        current_FV = self.inventory_number * future_price
+        delta_FV = np.sum(current_FV - passive_FV)
+
+        delay_modifier = 1-(self.current_step / len(self.intersect_dates)*0.5)
+        change_reward = delta_FV/np.sum(passive_FV)*delay_modifier
+        profit_reward = self.total_net_worth / 10000000
+        
+        reward = change_reward + profit_reward
+
+
         '''
         1. See the portfolio value in the future [10, 30, 180 days] for this action
         2. See the portfolio value in the future if we dont take action
+        '''
+        
         '''
         # Calculate Benchmark Performances
         # 1. Change Reward: The better off IN THE FUTURE for executing this action than doing nothing
@@ -216,17 +236,22 @@ class RebalancingEnv(gym.Env):
         leakage_today = np.mean([(df.loc[self.current_step, "Cum FX Change"] - 1 - COMMISSION_FEE) for df in self.df_list]) # Should be negative
         reward_list.append(leakage_today)
 
-
-        reward = np.mean(reward_list)
+        '''
         
-        if self.punish_no_action:
-            if np.sum(one_hot_action) != 0:
-                self.zero_action_count = 0
-            else:
-                self.zero_action_count += 1
-                if self.zero_action_count >= 3:
-                    reward = 0
+        # # if self.punish_no_action:
+        # if np.sum(one_hot_action) != 0:
+        #     self.zero_action_count = 0
+        # else:
+        #     self.zero_action_count += 1
 
+        # if self.zero_action_count <= 8:
+        #     freq_reward = min(max(-0.3, 0.3*(self.zero_action_count-4)/4), 0.3) # Penalty for being too frequent
+        # else:
+        #     freq_reward = min(max(-0.3, -0.3*(self.zero_action_count-12)/4), 0.3)
+
+        # reward = np.mean(reward_list)*0.85 + freq_reward
+        # reward = float(np.mean(reward_list))
+        
 
         # 3. Update Next Date: If reaches the end then go back to time 0.
         last_step = len(self.intersect_dates)-self.wait_days[0]-self.action_freq-1 
