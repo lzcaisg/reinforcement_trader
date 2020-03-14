@@ -57,7 +57,7 @@ class RebalancingEnv(gym.Env):
 
         # 4. Observation Space
         self.observation_space = spaces.Box(
-            low=0, high=1, shape=(6, 6), dtype=np.float16)
+            low=0, high=np.inf, shape=(10, 8), dtype=np.float16)
 
     def _next_observation(self):
         '''
@@ -68,11 +68,14 @@ class RebalancingEnv(gym.Env):
         # self.current_step is defined in reset method,
         # We assume the current_step is TODAY (BEFORE FINAL), which means we only know infomation till YESTERDAY ENDS.
         # today_date = self.intersect_dates(self.current_step)
-        high_obs = self.df_list[0][self.col_list][self.current_step-self.window_size:self.current_step]
-        mid_obs  = self.df_list[1][self.col_list][self.current_step-self.window_size:self.current_step]
+        obs_steps = self.current_step+self.obs_relative_steps
+        obs_steps[obs_steps<0] = 0
+        
+        high_obs = self.df_list[0][self.col_list].loc[list(obs_steps)]
+        mid_obs  = self.df_list[1][self.col_list].loc[list(obs_steps)]
 
         obs = pd.concat([high_obs, mid_obs], axis=1, sort=False)
-        obs.columns = ['EMA_h', 'MACD_diff_h', 'delta_time_h', 'EMA_m', 'MACD_diff_m', 'delta_time_m']
+        obs.columns = ['EMA_h', 'MACD_diff_h', 'delta_time_h','leakage_h', 'EMA_m', 'MACD_diff_m', 'delta_time_m', 'leakage_m']
         obs.reset_index(inplace=True, drop=True)
         obs[['EMA_h', 'EMA_m']] /= obs[['EMA_h', 'EMA_m']].iloc[0]
         self.obs = obs
@@ -205,7 +208,7 @@ class RebalancingEnv(gym.Env):
         future_step = self.current_step+self.wait_days
         max_lenth = min([len(df['Price']) for df in self.df_list])
         future_step = min(future_step, max_lenth)
-        future_price = [df.loc[self.current_step+self.wait_days, "Price"] for df in self.df_list]
+        future_price = [df.loc[future_step, "Price"] for df in self.df_list]
         future_price = np.array(future_price, dtype=np.float64)
 
         passive_FV = self.prev_inventory_num * future_price # FV: Future Value
@@ -311,7 +314,7 @@ class RebalancingEnv(gym.Env):
         self.current_action = self.prev_action
 
         self.prev_action_step = 0 
-
+        self.obs_relative_steps = np.array([-1, -2, -3, -4, -5, -10, -15, -20, -40, -100])
         # Set the current step to a random point within the data frame
         # We set the current step to a random point within the data frame, because it essentially gives our agent’s more unique experiences from the same data set.
         if self.training:

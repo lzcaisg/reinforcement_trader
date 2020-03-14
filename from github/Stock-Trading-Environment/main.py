@@ -18,12 +18,12 @@ import os
 from os import path
 
 
-SAVE_DIR = "./output/303"
+SAVE_DIR = "./output/304"
 import os
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
 
-common_fileName_prefix = "BRZ_TW_NASDAQ-Selected_Trans-7d"
+common_fileName_prefix = "BRZ_TW_NASDAQ-Selected_Trans-withleakage"
 summary_fileName_suffix = "summary-X.out"
 detail_fileName_suffix = "detailed-ModelNo-X.out"
 
@@ -67,7 +67,7 @@ for key in df_namelist:
     df['MACD_diff'] = ta.trend.macd_diff(df[price_label])
     macd_direction = df['MACD_diff']/np.abs(df['MACD_diff']) # 1: No change, -1: Change Sign
     df['MACD_change'] = (-1*macd_direction*macd_direction.shift(1)+1)/2 # 1: Change Sign, 0: No Change
-
+    
     # delta_time: How many days since the last trend change
     delta_time = [] 
     for i in df['MACD_change']:
@@ -90,7 +90,7 @@ for key in df_namelist:
     train_df_dict[key] = train_df
     test_df_dict[key]  = test_df
 
-col_list = ['EMA', 'MACD_diff', 'delta_time']
+col_list = ['EMA', 'MACD_diff', 'delta_time','Cum FX Change']
 # The algorithms require a vectorized environment to run
 trainEnv = DummyVecEnv([lambda: RebalancingEnv(df_dict=train_df_dict, col_list=col_list, isTraining=True)])
 testEnv  = DummyVecEnv([lambda: RebalancingEnv(df_dict=test_df_dict, col_list=col_list, isTraining=False)])
@@ -100,18 +100,18 @@ testEnv  = DummyVecEnv([lambda: RebalancingEnv(df_dict=test_df_dict, col_list=co
 REPEAT_NO = 10
 # tstep_list = [200000,500000]
 # tstep_list = [500000, 1000000]
-tstep_list = [100000]
+tstep_list = [50000]
 # tstep_list = [100000, 500000]
 
 
 for tstep in tstep_list:
     final_result = []
     summary_fileName = summary_fileName_model[:-5] +str(tstep) + ".out"
-    for modelNo in range(8, REPEAT_NO):
+    for modelNo in range(8):
         profit_list = []
         act_profit_list = []
         detail_list = []
-        model = PPO2(MlpPolicy, trainEnv, verbose=1, tensorboard_log="/0313_"+str(tstep)+"_tensorboard/")
+        model = PPO2(MlpPolicy, trainEnv, verbose=1, tensorboard_log="./0314_"+str(tstep)+"_tensorboard/")
         model.learn(total_timesteps=tstep, log_interval=128)
         # model.learn(total_timesteps=tstep)
         model_name = common_fileName_prefix + str(tstep) + '-' +str(modelNo) + "-model.model"
