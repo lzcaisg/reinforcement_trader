@@ -28,7 +28,7 @@ class RebalancingEnv(gym.Env):
         self.wait_days = 10 
         self.punish_no_action = False
         # wait_days: Number of days need to wait for determine the reward.
-        self.action_freq = 7
+        self.action_freq = 1
         # Take action for every 7 days.
         self.df_list = []
         # Determine the number of markets
@@ -193,17 +193,25 @@ class RebalancingEnv(gym.Env):
         '''
         # Calculate Benchmark Performances
         # 1. Get the future price
-        future_price = [df.loc[self.current_step+self.wait_days, "Price"] for df in self.df_list]
+        future_step = self.current_step+self.wait_days
+        max_lenth = min([len(df['Price']) for df in self.df_list])
+        future_step = min(future_step, max_lenth)
+        future_price = [df.loc[future_step, "Price"] for df in self.df_list]
         future_price = np.array(future_price, dtype=np.float64)
 
         passive_FV = self.prev_inventory_num * future_price # FV: Future Value
         current_FV = self.inventory_number * future_price
 
         delay_modifier = 1-(self.current_step / len(self.intersect_dates)*0.5)
-        change_reward = np.sum(current_FV - passive_FV)/np.sum(passive_FV)*delay_modifier
+        delta_FV = np.sum(current_FV - passive_FV)/np.sum(passive_FV)
+        if np.isnan(delta_FV) or np.isinf(delta_FV):
+            delta_FV = 0
+        change_reward = delta_FV*delay_modifier
         profit_reward = self.total_net_worth / 10000000
         
         reward = change_reward + profit_reward
+        if reward==np.inf:
+            print("INF")
         
         if self.punish_no_action:
             if np.sum(one_hot_action) != 0:
