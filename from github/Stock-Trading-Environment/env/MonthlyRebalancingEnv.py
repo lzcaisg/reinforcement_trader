@@ -57,7 +57,7 @@ class RebalancingEnv(gym.Env):
 
         # 4. Observation Space
         self.observation_space = spaces.Box(
-            low=0, high=np.inf, shape=(10, 8), dtype=np.float16)
+            low=-np.inf, high=np.inf, shape=(10, 10), dtype=np.float16)
 
     def _next_observation(self):
         '''
@@ -75,9 +75,9 @@ class RebalancingEnv(gym.Env):
         mid_obs  = self.df_list[1][self.col_list].loc[list(obs_steps)]
 
         obs = pd.concat([high_obs, mid_obs], axis=1, sort=False)
-        obs.columns = ['EMA_h', 'MACD_diff_h', 'delta_time_h','leakage_h', 'EMA_m', 'MACD_diff_m', 'delta_time_m', 'leakage_m']
+        obs.columns = [tmp+'_h' for tmp in self.col_list] + [tmp+'_m' for tmp in self.col_list]
         obs.reset_index(inplace=True, drop=True)
-        obs[['EMA_h', 'EMA_m']] /= obs[['EMA_h', 'EMA_m']].iloc[0]
+        # obs[['EMA_h', 'EMA_m']] /= obs[['EMA_h', 'EMA_m']].iloc[0]
         self.obs = obs
 
         return self.obs.values

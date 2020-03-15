@@ -18,12 +18,12 @@ import os
 from os import path
 
 
-SAVE_DIR = "./output/304"
+SAVE_DIR = "./output/305"
 import os
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
 
-common_fileName_prefix = "BRZ_TW_NASDAQ-Selected_Trans-withleakage"
+common_fileName_prefix = "BRZ_TW_NASDAQ-Selected_Trans-withleakage+RSI"
 summary_fileName_suffix = "summary-X.out"
 detail_fileName_suffix = "detailed-ModelNo-X.out"
 
@@ -62,13 +62,16 @@ for key in df_namelist:
     
 
     df = df.sort_values('Date').reset_index(drop=True)
-
+    # Add TA Indicators
+    # <1> EMA
     df['EMA'] = df[price_label].ewm(span=15).mean()
-    df['MACD_diff'] = ta.trend.macd_diff(df[price_label])
+    # <2> MACD_diff
+    df['MACD_diff'] = ta.trend.macd_diff(df[price_label], fillna=True)
     macd_direction = df['MACD_diff']/np.abs(df['MACD_diff']) # 1: No change, -1: Change Sign
+    # <3> MACD_change
     df['MACD_change'] = (-1*macd_direction*macd_direction.shift(1)+1)/2 # 1: Change Sign, 0: No Change
     
-    # delta_time: How many days since the last trend change
+    # <4> delta_time: How many days since the last trend change
     delta_time = [] 
     for i in df['MACD_change']:
         if len(delta_time) == 0:
@@ -80,6 +83,9 @@ for key in df_namelist:
         delta_time.append(result)
     df['delta_time'] = delta_time
 
+    # <5> RSI
+    df['RSI'] = ta.momentum.RSIIndicator(df[price_label], fillna=True).rsi() 
+
     # Clean up all the nans
     df = df.dropna()
     df = df.reset_index(drop=True)
@@ -90,7 +96,7 @@ for key in df_namelist:
     train_df_dict[key] = train_df
     test_df_dict[key]  = test_df
 
-col_list = ['EMA', 'MACD_diff', 'delta_time','Cum FX Change']
+col_list = ['EMA', 'MACD_diff', 'delta_time', 'RSI', 'Cum FX Change']
 # The algorithms require a vectorized environment to run
 trainEnv = DummyVecEnv([lambda: RebalancingEnv(df_dict=train_df_dict, col_list=col_list, isTraining=True)])
 testEnv  = DummyVecEnv([lambda: RebalancingEnv(df_dict=test_df_dict, col_list=col_list, isTraining=False)])
@@ -100,7 +106,7 @@ testEnv  = DummyVecEnv([lambda: RebalancingEnv(df_dict=test_df_dict, col_list=co
 REPEAT_NO = 10
 # tstep_list = [200000,500000]
 # tstep_list = [500000, 1000000]
-tstep_list = [50000]
+tstep_list = [100]
 # tstep_list = [100000, 500000]
 
 
