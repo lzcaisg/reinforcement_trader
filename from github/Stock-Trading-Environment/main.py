@@ -23,7 +23,7 @@ import os
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
 
-common_fileName_prefix = "BRZ_TW_NASDAQ-Selected_Trans-withleakage+RSI"
+common_fileName_prefix = "BRZ_TW_NASDAQ-Selected_Trans-withleakage+RSI-"
 summary_fileName_suffix = "summary-X.out"
 detail_fileName_suffix = "detailed-ModelNo-X.out"
 
@@ -112,11 +112,11 @@ tstep_list = [100000]
 for tstep in tstep_list:
     final_result = []
     summary_fileName = summary_fileName_model[:-5] +str(tstep) + ".out"
-    for modelNo in range(4):
+    for modelNo in range(REPEAT_NO):
         profit_list = []
         act_profit_list = []
         detail_list = []
-        model = PPO2(MlpPolicy, trainEnv, verbose=1, tensorboard_log="./0314_"+str(tstep)+"_tensorboard/")
+        model = PPO2(MlpPolicy, trainEnv, verbose=1, tensorboard_log="./"+SAVE_DIR[-3:]+'_'+str(tstep)+"_tensorboard/")
         model.learn(total_timesteps=tstep, log_interval=128)
         # model.learn(total_timesteps=tstep)
         model_name = common_fileName_prefix + str(tstep) + '-' +str(modelNo) + "-model.model"
