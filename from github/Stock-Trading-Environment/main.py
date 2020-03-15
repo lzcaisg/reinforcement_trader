@@ -100,14 +100,14 @@ testEnv  = DummyVecEnv([lambda: RebalancingEnv(df_dict=test_df_dict, col_list=co
 REPEAT_NO = 10
 # tstep_list = [200000,500000]
 # tstep_list = [500000, 1000000]
-tstep_list = [50000]
+tstep_list = [100000]
 # tstep_list = [100000, 500000]
 
 
 for tstep in tstep_list:
     final_result = []
     summary_fileName = summary_fileName_model[:-5] +str(tstep) + ".out"
-    for modelNo in range(4, REPEAT_NO):
+    for modelNo in range(4):
         profit_list = []
         act_profit_list = []
         detail_list = []
