@@ -207,8 +207,19 @@ class RebalancingEnv(gym.Env):
         # 1. Get the future price
         future_step = self.current_step+self.wait_days
         max_lenth = min([len(df['Price']) for df in self.df_list])
-        future_step = min(future_step, max_lenth)
-        future_price = [df.loc[future_step, "Price"] for df in self.df_list]
+        future_step = min(future_step, max_lenth-1)
+        # future_price = [df.loc[future_step, "Price"] for df in self.df_list]
+        future_price = []
+
+        for df in self.df_list:
+            try:
+                price = df.loc[future_step, "Price"]
+                future_price.append(price)
+            except Exception as e:
+                print(e)
+                future_price.append(df['Price'].values[-1])
+                
+        
         future_price = np.array(future_price, dtype=np.float64)
 
         passive_FV = self.prev_inventory_num * future_price # FV: Future Value
