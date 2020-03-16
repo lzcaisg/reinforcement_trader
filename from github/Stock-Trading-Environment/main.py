@@ -104,8 +104,8 @@ testEnv  = DummyVecEnv([lambda: RebalancingEnv(df_dict=test_df_dict, col_list=co
 
 # ============ Number of days trained =============
 REPEAT_NO = 10
-# tstep_list = [200000,500000]
-tstep_list = [100000]
+tstep_list = [200000]
+# tstep_list = [50000, 100000]
 # tstep_list = [100000, 500000]
 
 
