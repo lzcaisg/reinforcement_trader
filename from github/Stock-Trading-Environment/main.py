@@ -18,7 +18,7 @@ import os
 from os import path
 
 
-SAVE_DIR = "./output/305"
+SAVE_DIR = "./output/306"
 import os
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
@@ -65,9 +65,13 @@ for key in df_namelist:
     # Add TA Indicators
     # <1> EMA
     df['EMA'] = df[price_label].ewm(span=15).mean()
+    df['EMA'] /= df[price_label][0]
+    
     # <2> MACD_diff
     df['MACD_diff'] = ta.trend.macd_diff(df[price_label], fillna=True)
+    df['EMA'] /= df[price_label][0]
     macd_direction = df['MACD_diff']/np.abs(df['MACD_diff']) # 1: No change, -1: Change Sign
+    
     # <3> MACD_change
     df['MACD_change'] = (-1*macd_direction*macd_direction.shift(1)+1)/2 # 1: Change Sign, 0: No Change
     
@@ -85,6 +89,7 @@ for key in df_namelist:
 
     # <5> RSI
     df['RSI'] = ta.momentum.RSIIndicator(df[price_label], fillna=True).rsi() 
+    df['RSI'] /= df[price_label][0]
 
     # Clean up all the nans
     df = df.dropna()
@@ -104,7 +109,7 @@ testEnv  = DummyVecEnv([lambda: RebalancingEnv(df_dict=test_df_dict, col_list=co
 
 # ============ Number of days trained =============
 REPEAT_NO = 10
-tstep_list = [10000]
+tstep_list = [10000, 50000, 100000, 200000]
 # tstep_list = [50000, 100000]
 # tstep_list = [100000, 500000]
 
@@ -128,7 +133,8 @@ for tstep in tstep_list:
         # Test for consecutive 2000 days
         for testNo in range(365*5):
             action, _states = model.predict(obs)
-
+            if np.isnan(action).any():
+                print(testNo)
             obs, rewards, done, info = testEnv.step(action)
             if done:
                 print("Done")

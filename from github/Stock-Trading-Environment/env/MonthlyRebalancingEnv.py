@@ -57,7 +57,7 @@ class RebalancingEnv(gym.Env):
 
         # 4. Observation Space
         self.observation_space = spaces.Box(
-            low=-np.inf, high=np.inf, shape=(10, 10), dtype=np.float16)
+            low=0, high=np.inf, shape=(10, 10), dtype=np.float16)
 
     def _next_observation(self):
         '''
@@ -78,6 +78,9 @@ class RebalancingEnv(gym.Env):
         obs.columns = [tmp+'_h' for tmp in self.col_list] + [tmp+'_m' for tmp in self.col_list]
         obs.reset_index(inplace=True, drop=True)
         # obs[['EMA_h', 'EMA_m']] /= obs[['EMA_h', 'EMA_m']].iloc[0]
+        theSum = abs(obs.values).sum()
+        if theSum == np.inf:
+            print(obs)
         self.obs = obs
 
         return self.obs.values
@@ -155,7 +158,7 @@ class RebalancingEnv(gym.Env):
         Action 3: 10% High, 10% Mid, 80% Low.
         '''
         # 0. Determine whether can take action: Allow to take action for at freq of 1 month
-        self.open_for_transaction = self.current_step > self.prev_action_step + 20
+        self.open_for_transaction = self.current_step > (self.prev_action_step + 20)
         
         # 1. Translate one-hot action into int.
         if np.isnan(one_hot_action).any():
@@ -171,7 +174,8 @@ class RebalancingEnv(gym.Env):
                                                      df.loc[self.current_step, "High"]) for df in self.df_list], dtype=np.float64)     
 
         # 2. Take Action. 
-        if (np.sum(one_hot_action) > 0) and self.open_for_transaction:
+
+        if ((np.sum(one_hot_action) > 0) and self.open_for_transaction) or self.current_step > (self.prev_action_step + 40):
             self._take_action(action, not_execute=False)
             self.prev_action_step = self.current_step
             self.open_for_transaction = False
@@ -236,13 +240,7 @@ class RebalancingEnv(gym.Env):
         if reward==np.inf:
             print("INF")
         
-        if self.punish_no_action:
-            if np.sum(one_hot_action) != 0:
-                self.zero_action_count = 0
-            else:
-                self.zero_action_count += 1
-                if self.zero_action_count >= 3:
-                    reward = 0
+
 
 
         # 3. Update Next Date: If reaches the end then go back to time 0.

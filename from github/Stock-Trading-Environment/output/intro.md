@@ -26,3 +26,5 @@
 14. Required to cash out on the last day (done, no train)
 
 15. Use Delta Ratio as Reward
+
+305： BAD
