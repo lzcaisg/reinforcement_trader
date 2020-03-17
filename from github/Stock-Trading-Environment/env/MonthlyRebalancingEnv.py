@@ -62,7 +62,7 @@ class RebalancingEnv(gym.Env):
     def _next_observation(self):
         '''
         The _next_observation method provices observations in the format of:
-        States = (EMA_h, MACD_h, EMA_m, MACD_m, delta_time)
+        States = ['EMA', 'MACD_diff', 'delta_time', 'RSI', 'Cum FX Change']
         Refer to the report for detailed explanation.
         '''
         # self.current_step is defined in reset method,

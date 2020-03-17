@@ -27,4 +27,4 @@
 
 15. Use Delta Ratio as Reward
 
-305： BAD
+305. BAD
