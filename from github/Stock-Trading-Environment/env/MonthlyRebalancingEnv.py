@@ -185,17 +185,17 @@ class RebalancingEnv(gym.Env):
                         self.net_worth, self.max_net_worth, 
             '''
 
-            # 3. Get the close price for TODAY and calculate profit        
-            close_prices = [df.loc[self.current_step, "Price"] for df in self.df_list]
-            close_prices = np.array(close_prices, dtype=np.float64)
-
-            self.prev_buyNhold_balance = self.buyNhold_balance
-            self.buyNhold_balance = np.sum(
-                self.init_buyNhold_number * close_prices)
-            self.prev_buyNhold_price = close_prices
-
         else:
             self._take_action(action, not_execute=True)
+        
+        # 3. Get the close price for TODAY and calculate profit        
+        close_prices = [df.loc[self.current_step, "Price"] for df in self.df_list]
+        close_prices = np.array(close_prices, dtype=np.float64)
+
+        self.prev_buyNhold_balance = self.buyNhold_balance
+        self.buyNhold_balance = np.sum(
+            self.init_buyNhold_number * close_prices)
+        self.prev_buyNhold_price = close_prices
 
         profit = self.total_net_worth - INITIAL_ACCOUNT_BALANCE
         actual_profit = self.total_net_worth - self.buyNhold_balance

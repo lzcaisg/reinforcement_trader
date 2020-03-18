@@ -18,7 +18,7 @@ import os
 from os import path
 
 
-SAVE_DIR = "./output/307"
+SAVE_DIR = "./output/308"
 LOAD_DIR = "./output/306"
 import os
 if not os.path.exists(SAVE_DIR):
@@ -46,8 +46,8 @@ test_df_dict    = {"high": pd.DataFrame(), "mid": pd.DataFrame(), "low": pd.Data
 trainStartDate  = pd.to_datetime("2005-01-01")
 trainEndDate    = pd.to_datetime("2014-12-31")
 
-testStartDate   = pd.to_datetime("2003-01-01")
-testEndDate     = pd.to_datetime("2003-12-31")
+testStartDate   = pd.to_datetime("2007-01-01")
+testEndDate     = pd.to_datetime("2010-12-31")
 
 for key in df_namelist:
     fileName = df_namelist[key]+".csv"
