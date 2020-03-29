@@ -67,36 +67,20 @@ class RebalancingEnv(gym.Env):
         # self.current_step is defined in reset method,
         # We assume the current_step is TODAY (BEFORE FINAL), which means we only know infomation till YESTERDAY ENDS.
         # today_date = self.intersect_dates(self.current_step)
-        obs_steps = self.current_step+self.obs_relative_steps # obs_relative_steps and obs_steps Is a List!!!
+        obs_steps = self.current_step+self.obs_relative_steps # obs_relative_steps and obs_steps Is a List!!!   
         
-        skip = True # skip: whether all three has a max_drawback 
-        while skip == True:
-            # Check the maximum drawdown
-            drawdown_count = 0
-            for i, df in enumerate(self.df_list):
-                roll_Max = pd.rolling_max(df['Price'], window=30, min_periods=1)
-                daily_Drawdown = df['Price']/roll_Max - 1.0
-                if np.min(daily_Drawdown) <= self.drawdown_threshold:
-                    drawdown_count += 1
-            
-            if drawdown_count == len(self.df_list):
-                self.cash_out_trigger = True
-            else:
-                skip = False
-            
-            if not skip:
-                obs_steps[obs_steps<0] = 0
-                high_obs = self.df_list[0][self.col_list].loc[list(obs_steps)]
-                mid_obs  = self.df_list[1][self.col_list].loc[list(obs_steps)]
+        obs_steps[obs_steps<0] = 0
+        high_obs = self.df_list[0][self.col_list].loc[list(obs_steps)]
+        mid_obs  = self.df_list[1][self.col_list].loc[list(obs_steps)]
 
-                obs = pd.concat([high_obs, mid_obs], axis=1, sort=False)
-                obs.columns = [tmp+'_h' for tmp in self.col_list] + [tmp+'_m' for tmp in self.col_list]
-                obs.reset_index(inplace=True, drop=True)
-                # obs[['EMA_h', 'EMA_m']] /= obs[['EMA_h', 'EMA_m']].iloc[0]
-                theSum = abs(obs.values).sum()
-                if theSum == np.inf:
-                    print(obs)
-                self.obs = obs
+        obs = pd.concat([high_obs, mid_obs], axis=1, sort=False)
+        obs.columns = [tmp+'_h' for tmp in self.col_list] + [tmp+'_m' for tmp in self.col_list]
+        obs.reset_index(inplace=True, drop=True)
+        # obs[['EMA_h', 'EMA_m']] /= obs[['EMA_h', 'EMA_m']].iloc[0]
+        theSum = abs(obs.values).sum()
+        if theSum == np.inf:
+            print(obs)
+        self.obs = obs
 
         return self.obs.values
 
@@ -134,8 +118,16 @@ class RebalancingEnv(gym.Env):
         self.proposed_inv_num = inv_number_after_sell + buy_number
         
         if not not_execute:
-            self.total_sales_value += sell_value
+            self._update_params(sell_value, buy_value)
 
+    def _update_params(self, sell_value, buy_value, cashout=False):
+        '''
+        Updates self.total_sales_value; self.inventory_number; self.prev_inventory_num;
+                self.cost_basis; self.prev_net_worth; self.net_worth;
+                self.prev_total_net_worth; self.total_net_worth; self.max_net_worth;                        
+        '''
+        if not cashout:
+            self.total_sales_value += sell_value
             prev_cost = self.cost_basis * self.inventory_number
             self.inventory_number = self.proposed_inv_num
 
@@ -147,17 +139,23 @@ class RebalancingEnv(gym.Env):
             a = (prev_cost - sell_value + buy_value)
             b = self.inventory_number
             self.cost_basis = np.divide(a, b, out=np.zeros_like(a), where=b!=0)
-            
+
             self.cost_basis[pd.isna(self.cost_basis)] = 0
             self.cost_basis[np.isinf(self.cost_basis)] = 0
-            
-            self.prev_net_worth = self.net_worth
-            self.net_worth = self.inventory_number * self.actual_price
-            
-            self.prev_total_net_worth = self.total_net_worth
-            self.total_net_worth = np.sum(self.net_worth) + self.cash
-            if self.total_net_worth > self.max_net_worth:
-                self.max_net_worth = self.total_net_worth
+        
+        else:
+            self.prev_inventory_num = self.inventory_number
+            self.inventory_number = np.array([0.0]*self.market_number)
+            self.cost_basis = np.array([0.0]*self.market_number)
+            self.total_sales_value += self.prev_inventory_num*self.actual_price*(1-COMMISSION_FEE)
+
+        self.prev_net_worth = self.net_worth
+        self.net_worth = self.inventory_number * self.actual_price
+
+        self.prev_total_net_worth = self.total_net_worth
+        self.total_net_worth = np.sum(self.net_worth) + self.cash
+        if self.total_net_worth > self.max_net_worth:
+            self.max_net_worth = self.total_net_worth
 
 
         # if np.isnan(self.inventory_number).any():
@@ -204,13 +202,7 @@ class RebalancingEnv(gym.Env):
             self._take_action(action, not_execute=True)
         
         # 3. Get the close price for TODAY and calculate profit        
-        close_prices = [df.loc[self.current_step, "Price"] for df in self.df_list]
-        close_prices = np.array(close_prices, dtype=np.float64)
-
-        self.prev_buyNhold_balance = self.buyNhold_balance
-        self.buyNhold_balance = np.sum(
-            self.init_buyNhold_number * close_prices)
-        self.prev_buyNhold_price = close_prices
+        self._update_buyNhold()
 
         profit = self.total_net_worth - INITIAL_ACCOUNT_BALANCE
         actual_profit = self.total_net_worth - self.buyNhold_balance
@@ -259,29 +251,48 @@ class RebalancingEnv(gym.Env):
 
 
         # 3. Update Next Date: If reaches the end then go back to time 0.
-        last_step = len(self.intersect_dates)-self.wait_days-self.action_freq-1
-        if self.current_step >= last_step:
-            if self.training:
-                self.current_step = self.window_size  # Going back to time 0
-                
-                close_prices = [df.loc[self.current_step, "Price"] for df in self.df_list]
-                close_prices = np.array(close_prices, dtype=np.float64)
-                self.inventory_number = self.net_worth/close_prices
-                self.prev_inventory_num = self.inventory_number
-                self.cost_basis = close_prices
-                self.open_for_transaction = True
-
-            else:  # if is testing: Stop iteratioin
-                self.current_step = last_step
-                self.finished = True
-        else:
-            # 1. Execute TODAY's Action
-            self.current_step += 1
-            
+        self._update_current_step()
             # ****IMPORTANT: From now on, the current_step becomes TOMORROW****
             # Keep the current_step undiscovered
         
-        
+        # Check whether the next current_step any crisis happens
+        skip = True # skip: whether all three has a max_drawback 
+        while skip == True:
+            # Check the maximum drawdown
+            
+            drawdown_count = 0
+            for df in self.df_list: # Check if the max monthly drawdown >= 20%
+                tmp_df = df['daily_Drawdown'].loc[self.current_step-30:self.current_step]
+                if np.min(tmp_df) <= -1*self.drawdown_threshold: # negative number
+                    drawdown_count += 1
+            
+            if drawdown_count == self.market_number: # Crisis happens in today: All the markets go off
+                if not self.cash_out_trigger: # Happens for the first time: 
+                    # !!!!!!!!!!!! CASH OUT !!!!!!!!!!!!
+                    print("CASH OUT", self.df_list[0]['Date'][self.current_step])
+                    self.actual_price = np.array([random.uniform(df.loc[self.current_step, "Low"],
+                                                     df.loc[self.current_step, "High"]) for df in self.df_list], dtype=np.float64)     
+                    self.cash = np.sum(self.inventory_number*self.actual_price*(1-COMMISSION_FEE))
+                    self._update_params(sell_value = None, buy_value = None, cashout=True)
+                    self.cash_out_trigger = True
+
+                self._update_buyNhold()
+                self._update_current_step()
+            else: # If today no crisis:
+                if self.cash_out_trigger: # If previously have crisis: FINALLY ENDS
+                    # !!!!!!!!!!!! BUY IN !!!!!!!!!!!!
+                    print("BUY IN", self.df_list[0]['Date'][self.current_step])
+                    self.actual_price = np.array([random.uniform(df.loc[self.current_step, "Low"],
+                                                     df.loc[self.current_step, "High"]) for df in self.df_list], dtype=np.float64)     
+                    buy_value = [self.cash*(1-COMMISSION_FEE)/self.market_number]*self.market_number
+                    self.proposed_inv_num = buy_value/self.actual_price
+                    self.cash = 0
+                    self._update_params(sell_value = np.array([0.0]*self.market_number), buy_value = buy_value)
+                    self._update_buyNhold()
+                    self._update_current_step()
+
+                skip = False
+                self.cash_out_trigger = False
         # OpenAI will reset if done==True
         done = (self.total_net_worth <= 0) or self.finished
         obs = self._next_observation()
@@ -296,6 +307,36 @@ class RebalancingEnv(gym.Env):
         
         info = {"profit": profit, "total_shares_sold": self.total_sales_value, "actual_profit": actual_profit}
         return (obs, reward, done, info)
+
+    def _update_buyNhold(self):
+        close_prices = [df.loc[self.current_step, "Price"] for df in self.df_list]
+        close_prices = np.array(close_prices, dtype=np.float64)
+
+        self.prev_buyNhold_balance = self.buyNhold_balance
+        self.buyNhold_balance = np.sum(
+            self.init_buyNhold_number * close_prices)
+        self.prev_buyNhold_price = close_prices
+        
+
+    def _update_current_step(self):
+        last_step = len(self.intersect_dates)-self.wait_days-self.action_freq-1
+        if self.current_step >= last_step:
+            if self.training:
+                self.current_step = self.window_size  # Going back to time 0
+
+                close_prices = [df.loc[self.current_step, "Price"] for df in self.df_list]
+                close_prices = np.array(close_prices, dtype=np.float64)
+                self.inventory_number = self.net_worth/close_prices
+                self.prev_inventory_num = self.inventory_number
+                self.cost_basis = close_prices
+                self.open_for_transaction = True
+
+            else:  # if is testing: Stop iteratioin
+                self.current_step = last_step
+                self.finished = True
+        else:
+            # 1. Execute TODAY's Action
+            self.current_step += 1
 
     def reset(self):
         # Reset the state of the environment to an initial state
@@ -330,7 +371,7 @@ class RebalancingEnv(gym.Env):
             dtype=np.float64)
 
         self.cash = 0
-        self.drawdown_threshold = 0.2
+        self.drawdown_threshold = 0.15
         self.cash_out_trigger = False
         
         self.total_sales_value = np.array([0.0] * self.market_number)

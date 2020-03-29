@@ -8,7 +8,7 @@ from stable_baselines.common.policies import MlpPolicy
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines import PPO2
 
-from env.MonthlyRebalancingEnv import RebalancingEnv
+from env.MonthlyRebalCashEnv import RebalancingEnv
 
 import pandas as pd
 import numpy as np
@@ -18,7 +18,7 @@ import os
 from os import path
 
 
-SAVE_DIR = "./output/308"
+SAVE_DIR = "./output/403"
 LOAD_DIR = "./output/306"
 import os
 if not os.path.exists(SAVE_DIR):
@@ -46,8 +46,8 @@ test_df_dict    = {"high": pd.DataFrame(), "mid": pd.DataFrame(), "low": pd.Data
 trainStartDate  = pd.to_datetime("2005-01-01")
 trainEndDate    = pd.to_datetime("2014-12-31")
 
-testStartDate   = pd.to_datetime("2007-01-01")
-testEndDate     = pd.to_datetime("2010-12-31")
+testStartDate   = pd.to_datetime("2015-01-01")
+testEndDate     = pd.to_datetime("2019-12-31")
 
 for key in df_namelist:
     fileName = df_namelist[key]+".csv"
@@ -91,6 +91,9 @@ for key in df_namelist:
     # <5> RSI
     df['RSI'] = ta.momentum.RSIIndicator(df[price_label], fillna=True).rsi() 
     df['RSI'] /= df[price_label][0]
+
+    roll_Max = df['Price'].rolling(window=30, min_periods=1).max()
+    df['daily_Drawdown'] = df['Price']/roll_Max - 1.0
 
     # Clean up all the nans
     df = df.dropna()

@@ -18,12 +18,12 @@ import os
 from os import path
 
 
-SAVE_DIR = "./output/306"
+SAVE_DIR = "./output/400"
 import os
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
 
-common_fileName_prefix = "BRZ_TW_NASDAQ-Selected_Trans-withleakage+RSI-"
+common_fileName_prefix = "BRZ_TW_NASDAQ-Selected_Trans-withleakage+RSI+Avoid-"
 summary_fileName_suffix = "summary-X.out"
 detail_fileName_suffix = "detailed-ModelNo-X.out"
 
