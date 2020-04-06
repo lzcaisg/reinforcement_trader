@@ -18,13 +18,13 @@ import os
 from os import path
 
 
-SAVE_DIR = "./output/403"
+SAVE_DIR = "./output/432"
 LOAD_DIR = "./output/306"
 import os
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
 
-common_fileName_prefix = "BRZ_TW_NASDAQ-Selected_Trans-withleakage+RSI-"
+common_fileName_prefix = "Testing_cashout-20-"
 summary_fileName_suffix = "summary-X.out"
 detail_fileName_suffix = "detailed-ModelNo-X.out"
 
@@ -46,8 +46,14 @@ test_df_dict    = {"high": pd.DataFrame(), "mid": pd.DataFrame(), "low": pd.Data
 trainStartDate  = pd.to_datetime("2005-01-01")
 trainEndDate    = pd.to_datetime("2014-12-31")
 
-testStartDate   = pd.to_datetime("2015-01-01")
-testEndDate     = pd.to_datetime("2019-12-31")
+# testStartDate   = pd.to_datetime("2015-01-01")
+# testEndDate     = pd.to_datetime("2019-12-31")
+
+# testStartDate   = pd.to_datetime("2001-01-01")
+# testEndDate     = pd.to_datetime("2004-12-31")
+
+testStartDate   = pd.to_datetime("2007-01-01")
+testEndDate     = pd.to_datetime("2010-12-31")
 
 for key in df_namelist:
     fileName = df_namelist[key]+".csv"

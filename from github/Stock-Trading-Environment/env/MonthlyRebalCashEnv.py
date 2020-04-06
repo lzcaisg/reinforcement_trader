@@ -371,7 +371,7 @@ class RebalancingEnv(gym.Env):
             dtype=np.float64)
 
         self.cash = 0
-        self.drawdown_threshold = 0.15
+        self.drawdown_threshold = 0.10
         self.cash_out_trigger = False
         
         self.total_sales_value = np.array([0.0] * self.market_number)
