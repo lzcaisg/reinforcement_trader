@@ -265,8 +265,7 @@ class RebalancingEnv(gym.Env):
         # Returns the index of the max number, all same return 0 
         # => Choose Action 0-3, Default 0
         
-        self.actual_price = np.array([random.uniform(df.loc[self.current_step, "Low"],
-                                                     df.loc[self.current_step, "High"]) for df in self.df_list], dtype=np.float64)     
+        self.actual_price = np.array(df.loc[self.current_step, "Actual Price"]) for df in self.df_list], dtype=np.float64)     
 
         # 2. Take Action. 
 
