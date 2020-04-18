@@ -4,13 +4,13 @@ from main_0418 import *
 
 SAVE_DIR = "./output/1000"                              # Save Directory
 DATE_PREFIX = "0418"            
-VAIRABLE_PREFIX = "dailyFreq_noLeak_noCrisis"           # Filename: "0418-action_frequency-summary.out"
+VAIRABLE_PREFIX = "weeklyFreq_noLeak_noCrisis"           # Filename: "0418-action_frequency-summary.out"
 TSTEP_LIST = [200000]                                   # List of training steps
 DF_NAMELIST = {"high": "^BVSP_new", "mid": "^TWII_new", "low": "^IXIC_new"}
                                                         # csv file name
 
 ENV_PARAM = {
-    "trans_freq": 1,
+    "trans_freq": 5,
     "have_currency_leakage": False,
     "crisis_detection": False,
     "MDD_window": 20,                   

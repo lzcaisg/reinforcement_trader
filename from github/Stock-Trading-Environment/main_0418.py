@@ -201,8 +201,8 @@ def get_ta(df, price_label):
     df['RSI'] = ta.momentum.RSIIndicator(df[price_label], fillna=True).rsi() 
     df['RSI'] /= df[price_label][0]
 
-    roll_Max = df['Price'].rolling(window=30, min_periods=1).max()
-    df['daily_Drawdown'] = df['Price']/roll_Max - 1.0
+    roll_Max = df[price_label].rolling(window=30, min_periods=1).max()
+    df['daily_Drawdown'] = df[price_label]/roll_Max - 1.0
 
     # Clean up all the nans
     df = df.dropna()
