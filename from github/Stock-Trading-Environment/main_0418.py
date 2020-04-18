@@ -33,8 +33,6 @@ def main(   TRAINING = True, SAVE_DIR = "./output/1000", DATE_PREFIX = "0418", V
     summary_fileName_model = common_fileName_prefix+'-'+summary_fileName_suffix
     detail_fileName_model = common_fileName_prefix+'-'+detail_fileName_suffix
 
-    trainYears = 10
-    testYears = 5
     
     if TRAIN_TEST_DATE is None:
         trainStartDate  = pd.to_datetime("2005-01-01")

@@ -2,9 +2,9 @@ import pandas as pd
 import numpy as np
 from main_0418 import *
 
-SAVE_DIR = "./output/1000"                              # Save Directory
+SAVE_DIR = "./output/1001"                              # Save Directory
 DATE_PREFIX = "0418"            
-VAIRABLE_PREFIX = "monthlyFreq_noLeak_noCrisis"           # Filename: "0418-action_frequency-summary.out"
+VAIRABLE_PREFIX = "weeklyFreq_haveLeak_noCrisis"           # Filename: "0418-action_frequency-summary.out"
 TSTEP_LIST = [200000]                                   # List of training steps
 DF_NAMELIST = {"high": "^BVSP_new", "mid": "^TWII_new", "low": "^IXIC_new"}
                                                         # csv file name
@@ -16,8 +16,8 @@ freq_dict = {
 }
 
 ENV_PARAM = {
-    "trans_freq": freq_dict['monthly'],
-    "have_currency_leakage": False,
+    "trans_freq": freq_dict['weekly'],
+    "have_currency_leakage": True,
     "crisis_detection": False,
     "MDD_window": freq_dict['monthly'], 
     "reward_wait": 10
