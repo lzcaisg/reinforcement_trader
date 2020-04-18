@@ -23,8 +23,7 @@ DEFAULT_PARAMETER = {
     "trans_freq": 20,
     "have_currency_leakage": True,
     "crisis_detection": False,
-    "MDD_window": 20,       # Yet to be used
-    "obs_window": 6,
+    "MDD_window": 20,
     "reward_wait": 10
 }
 
@@ -39,7 +38,6 @@ class RebalancingEnv(gym.Env):
         self.col_list = list(col_list)
         if not env_param['have_currency_leakage']:
             self.col_list.remove('Cum FX Change')
-        self.window_size = env_param['obs_window']
         self.reward_wait = env_param['reward_wait']      # reward_wait: Number of days need to wait for determine the reward.
         self.action_freq = env_param['trans_freq']       # Take action for every 7 days.
         self.crisis_detection = env_param['crisis_detection']
@@ -68,6 +66,7 @@ class RebalancingEnv(gym.Env):
         # 4. Observation Space
         
         self.obs_relative_steps = np.array([-1, -2, -3, -4, -5, -10, -15, -20, -40, -100])    # Set the current step to a random point within the data frame
+        self.window_size = abs(self.obs_relative_steps[-1])
         self.observation_space = spaces.Box(
             low=0, high=np.inf, shape=(len(self.obs_relative_steps), len(self.col_list)*3), dtype=np.float16)
 
