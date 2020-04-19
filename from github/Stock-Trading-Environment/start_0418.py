@@ -26,8 +26,8 @@ ENV_PARAM = {
 TRAIN_TEST_DATE = {                     # outer bond of the train test date
     "trainStartDate": pd.to_datetime("2005-01-01"),
     "trainEndDate":   pd.to_datetime("2014-12-31"),
-    "testStartDate":  pd.to_datetime("2015-01-01"),
-    "testEndDate":    pd.to_datetime("2019-12-31")
+    # "testStartDate":  pd.to_datetime("2015-01-01"),
+    # "testEndDate":    pd.to_datetime("2019-12-31")
     }
 
 
@@ -46,7 +46,11 @@ for start in range(2000, 2015):
     testStartDate = pd.to_datetime(str(start)+"-01-01")
     for end in range(start+4, 2019):
         testEndDate = pd.to_datetime(str(end)+ "-12-31")
+        
+        TRAIN_TEST_DATE['testStartDate'] = testStartDate
+        TRAIN_TEST_DATE['testEndDate'] = testEndDate
         VAIRABLE_PREFIX = "TEST_noCrisis_"+str(start)+"_"+str(end)
+        
         main(   TRAINING=False, SAVE_DIR = SAVE_DIR, LOAD_DIR = LOAD_DIR, MODEL_FILE_PREFIX = MODEL_FILE_PREFIX,
                 DATE_PREFIX = DATE_PREFIX, VAIRABLE_PREFIX = VAIRABLE_PREFIX, DF_NAMELIST = DF_NAMELIST, 
                 TRAIN_TEST_DATE = TRAIN_TEST_DATE, TSTEP_LIST = TSTEP_LIST, ENV_PARAM=ENV_PARAM)
