@@ -32,16 +32,21 @@ TRAIN_TEST_DATE = {                     # outer bond of the train test date
 
 
 # --- To Train a new environment --- #
-main(   TRAINING=True, SAVE_DIR = SAVE_DIR, DATE_PREFIX = DATE_PREFIX, 
-        VAIRABLE_PREFIX = VAIRABLE_PREFIX, DF_NAMELIST = DF_NAMELIST, 
-        TRAIN_TEST_DATE = TRAIN_TEST_DATE, TSTEP_LIST = TSTEP_LIST,
-        ENV_PARAM = ENV_PARAM)
+# main(   TRAINING=True, SAVE_DIR = SAVE_DIR, DATE_PREFIX = DATE_PREFIX, 
+#         VAIRABLE_PREFIX = VAIRABLE_PREFIX, DF_NAMELIST = DF_NAMELIST, 
+#         TRAIN_TEST_DATE = TRAIN_TEST_DATE, TSTEP_LIST = TSTEP_LIST,
+#         ENV_PARAM = ENV_PARAM)
 
 
 # # --- To Test an existing environment --- #
-# SAVE_DIR = "./output/1000"
-# LOAD_DIR = "./output/306"
-# MODEL_FILE_PREFIX = "BRZ_TW_NASDAQ-Selected_Trans-withleakage+RSI-200000-"
-# main(   TRAINING=False, SAVE_DIR = SAVE_DIR, LOAD_DIR = LOAD_DIR, MODEL_FILE_PREFIX = MODEL_FILE_PREFIX,
-#         DATE_PREFIX = DATE_PREFIX, VAIRABLE_PREFIX = VAIRABLE_PREFIX, DF_NAMELIST = DF_NAMELIST, 
-#         TRAIN_TEST_DATE = TRAIN_TEST_DATE, TSTEP_LIST = TSTEP_LIST, ENV_PARAM=ENV_PARAM)
+SAVE_DIR = "./output/1010"
+LOAD_DIR = "./output/306"
+MODEL_FILE_PREFIX = "BRZ_TW_NASDAQ-Selected_Trans-withleakage+RSI-200000-"
+for start in range(2000, 2015):
+    testStartDate = pd.to_datetime(str(start)+"-01-01")
+    for end in range(start+4, 2019):
+        testEndDate = pd.to_datetime(str(end)+ "-12-31")
+        VAIRABLE_PREFIX = "TEST_noCrisis_"+str(start)+"_"+str(end)
+        main(   TRAINING=False, SAVE_DIR = SAVE_DIR, LOAD_DIR = LOAD_DIR, MODEL_FILE_PREFIX = MODEL_FILE_PREFIX,
+                DATE_PREFIX = DATE_PREFIX, VAIRABLE_PREFIX = VAIRABLE_PREFIX, DF_NAMELIST = DF_NAMELIST, 
+                TRAIN_TEST_DATE = TRAIN_TEST_DATE, TSTEP_LIST = TSTEP_LIST, ENV_PARAM=ENV_PARAM)

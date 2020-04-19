@@ -68,7 +68,7 @@ class RebalancingEnv(gym.Env):
         self.obs_relative_steps = np.array([-1, -2, -3, -4, -5, -10, -15, -20, -40, -100])    # Set the current step to a random point within the data frame
         self.window_size = abs(self.obs_relative_steps[-1])
         self.observation_space = spaces.Box(
-            low=0, high=np.inf, shape=(len(self.obs_relative_steps), len(self.col_list)*3), dtype=np.float16)
+            low=0, high=np.inf, shape=(len(self.obs_relative_steps), len(self.col_list)*2), dtype=np.float16)
 
 
     def reset(self):
@@ -152,10 +152,12 @@ class RebalancingEnv(gym.Env):
         obs_steps[obs_steps<0] = 0
         high_obs = self.df_list[0][self.col_list].loc[list(obs_steps)]
         mid_obs  = self.df_list[1][self.col_list].loc[list(obs_steps)]
-        low_obs = self.df_list[2][self.col_list].loc[list(obs_steps)]
+        # low_obs = self.df_list[2][self.col_list].loc[list(obs_steps)]
 
-        obs = pd.concat([high_obs, mid_obs, low_obs], axis=1, sort=False)
-        obs.columns = [tmp+'_h' for tmp in self.col_list] + [tmp+'_m' for tmp in self.col_list] + [tmp+'_l' for tmp in self.col_list]
+        obs = pd.concat([high_obs, mid_obs], axis=1, sort=False)
+        # obs = pd.concat([high_obs, mid_obs, low_obs], axis=1, sort=False)
+        # obs.columns = [tmp+'_h' for tmp in self.col_list] + [tmp+'_m' for tmp in self.col_list] + [tmp+'_l' for tmp in self.col_list]
+        obs.columns = [tmp+'_h' for tmp in self.col_list] + [tmp+'_m' for tmp in self.col_list]
         obs.reset_index(inplace=True, drop=True)
         # obs[['EMA_h', 'EMA_m']] /= obs[['EMA_h', 'EMA_m']].iloc[0]
         theSum = abs(obs.values).sum()
