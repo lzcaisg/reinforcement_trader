@@ -24,12 +24,13 @@ DEFAULT_PARAMETER = {
     "have_currency_leakage": True,
     "crisis_detection": False,
     "MDD_window": 20,
-    "reward_wait": 10
+    "reward_wait": 10,
+    "MDD_threshold": 0.2
 }
 
 class RebalancingEnv(gym.Env):
 
-    def __init__(   self, df_dict, col_list, env_param, isTraining=True):
+    def __init__(self, df_dict, col_list, env_param, isTraining=True):
         
         super(RebalancingEnv, self).__init__()
 
@@ -42,6 +43,7 @@ class RebalancingEnv(gym.Env):
         self.action_freq = env_param['trans_freq']       # Take action for every 7 days.
         self.crisis_detection = env_param['crisis_detection']
         self.MDD_window = env_param['MDD_window']
+        self.drawdown_threshold = env_param['MDD_threshold']
         self.df_list = []
         self.market_number = len(df_dict)   # Determine the number of markets
         # 1. Get the intersect dates from different stocks
@@ -107,7 +109,6 @@ class RebalancingEnv(gym.Env):
             dtype=np.float64)
 
         self.cash = 0
-        self.drawdown_threshold = 0.10
         self.cash_out_trigger = False
         
         self.total_sales_value = np.array([0.0] * self.market_number)
@@ -254,7 +255,7 @@ class RebalancingEnv(gym.Env):
         Action 3: 10% High, 10% Mid, 80% Low.
         '''
         # 0. Determine whether can take action: Allow to take action for at freq of 1 month
-        self.open_for_transaction = self.current_step > (self.prev_action_step + 20)
+        self.open_for_transaction = self.current_step >= (self.prev_action_step + self.action_freq)
         
         # 1. Translate one-hot action into int.
         if np.isnan(one_hot_action).any():
@@ -270,7 +271,9 @@ class RebalancingEnv(gym.Env):
 
         # 2. Take Action. 
 
-        if ((np.sum(one_hot_action) > 0) and self.open_for_transaction) or self.current_step > (self.prev_action_step + 40):
+        if ((np.sum(one_hot_action) > 0) and 
+            (self.open_for_transaction or (self.current_step >= (self.prev_action_step + self.action_freq*2)))):      # In case not reacting for too long
+            
             self._take_action(action, not_execute=False)
             self.prev_action_step = self.current_step
             self.open_for_transaction = False
@@ -339,7 +342,8 @@ class RebalancingEnv(gym.Env):
             skip = True # skip: whether all three has a max_drawback 
             while skip == True:
                 # Check the maximum drawdown
-                
+                if self.finished:
+                    break
                 drawdown_count = 0
                 for df in self.df_list: # Check if the max monthly drawdown >= 20%
                     tmp_df = df['daily_Drawdown'].loc[np.min(self.current_step-self.MDD_window,0):self.current_step]
