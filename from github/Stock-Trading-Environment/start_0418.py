@@ -47,27 +47,29 @@ dir_dict = {
     "weekly": "1013"
 }
 
-threshold_list = [0.20, 0.15, 0.10]
+threshold_list = [0.15, 0.10]
+task_list = []
+LOAD_DIR = "./output/306"
+MODEL_FILE_PREFIX = "BRZ_TW_NASDAQ-Selected_Trans-withleakage+RSI-200000-"
 
-for thres in threshold_list:
-    for freq in dir_dict:
-        SAVE_DIR = "./output/"+dir_dict[freq]
-        LOAD_DIR = "./output/306"
-        MODEL_FILE_PREFIX = "BRZ_TW_NASDAQ-Selected_Trans-withleakage+RSI-200000-"
-        for start in range(2000, 2016):
-            testStartDate = pd.to_datetime(str(start)+"-01-01")
-            for end in range(start+4, 2020):
-                testEndDate = pd.to_datetime(str(end)+ "-12-31")
-                
-                TRAIN_TEST_DATE['testStartDate'] = testStartDate
-                TRAIN_TEST_DATE['testEndDate'] = testEndDate
-                VAIRABLE_PREFIX = "TEST_"+("%.2f"%thres)+"_"+freq+"Crisis_"+str(start)+"_"+str(end)
-                ENV_PARAM['MDD_window'] = freq_dict[freq]
-                ENV_PARAM['MDD_threshold'] = thres
-                print("@@@@@@@@@@@@@@@@@@@", thres, freq, start, end, "@@@@@@@@@@@@@@@@@@@")
-                main(   TRAINING=False, SAVE_DIR = SAVE_DIR, LOAD_DIR = LOAD_DIR, MODEL_FILE_PREFIX = MODEL_FILE_PREFIX,
-                        DATE_PREFIX = DATE_PREFIX, VAIRABLE_PREFIX = VAIRABLE_PREFIX, DF_NAMELIST = DF_NAMELIST, 
-                        TRAIN_TEST_DATE = TRAIN_TEST_DATE, TSTEP_LIST = TSTEP_LIST, ENV_PARAM=ENV_PARAM)
+# for thres in threshold_list:
+#     for freq in dir_dict:
+#         SAVE_DIR = "./output/"+dir_dict[freq]
+#         ENV_PARAM['SAVE_DIR'] = SAVE_DIR
+#         for start in range(2000, 2016):
+#             testStartDate = pd.to_datetime(str(start)+"-01-01")
+#             ENV_PARAM['testStartDate'] = testStartDate
+#             for end in range(start+4, 2020):
+#                 testEndDate = pd.to_datetime(str(end)+ "-12-31")
+#                 ENV_PARAM['VAIRABLE_PREFIX'] = "TEST_"+("%.2f"%thres)+"_"+freq+"Crisis_"+str(start)+"_"+str(end)
+#                 ENV_PARAM['MDD_window'] = freq_dict[freq]
+#                 ENV_PARAM['MDD_threshold'] = thres
+
+#                 task_list.append(ENV_PARAM)
+    
+manytest(   freq_dict=freq_dict, dir_dict=dir_dict, threshold_list=threshold_list,
+            startyear=2000, endyear=2019, SAVE_DIR_PREFIX="./output/",
+            LOAD_DIR = LOAD_DIR, MODEL_FILE_PREFIX = MODEL_FILE_PREFIX )
 
 
 
