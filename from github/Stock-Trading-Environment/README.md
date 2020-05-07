@@ -14,3 +14,10 @@ Dependencies:
 
 
 
+TODO:
+Determine a RL Model to minimize leakage for balancing portfolio in multiple markets
+Benchmark-1: Half a year rebalancing (find GS/JPM intros)
+Benchmark-2: Manually set rebalancing date and determine performance
+Target: Let the Critics determine whether the gain vs leakage is good enough
+
+
