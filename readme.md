@@ -13,16 +13,16 @@ If you are reading this documentation from the DropBox, you can visit the github
 
 The default branch is multiple-market-predictor.
 
-The opinions, conclusions and recommendations contained therein are for reference only and do not constitute investment advice of any kind at any time. Performance figures only stands for past performance. Past performance should not be used as a predictor of future returns. The author will not bear any legal responsibility for any consequences caused by following or use this project.
+The opinions, conclusions and recommendations contained therein are for reference only and do not constitute investment advice of any kind at any time. Performance figures only stands for past performance. Past performance should not be used as a predictor of future returns. The author will not bear any legal responsibility for any consequences caused by following or using this project.
 
 ## Overview
 
-This project aims to build a reinforcement learning for rebalancing portfolio in multiple stock market indexes. We use Brazil, Taiwan and NASDAQ as the high-, medium- and low- risk market. Statistically, higher risks result in higher yield, and therefore we invest in the riskier market when the condision is good, and return to lower risk market when it turns bearish.
+This project aims to build a reinforcement learning for rebalancing portfolio in multiple stock market indexes. We use Brazil, Taiwan and NASDAQ as the high-, medium- and low-risk market. Statistically, higher risk results in higher yield, and therefore we invest in the riskier market when the condision is good, and return to lower risk market when it turns bearish.
 
 ## Lessons Learned
 
 Some lessons learned during this project:
-1. **DO NOT build the RL framework and baseline by yourself**. Use the wheels available. Rebuilding those stuff (e.g. [Tianshou 天授](https://baike.baidu.com/item/%E5%A4%A9%E6%8E%88) by THU Undergrads) may already takes one whole years already before you step to the finance problem. If that's what you actually looking for, I would suggest you to communicate with the prof ASAP and see how he or his PhD can help. You would be wasting time if you are playing it by yourself. 
+1. **DO NOT build the RL framework and baseline by yourself**. Use the wheels available. Rebuilding those stuff (e.g. [Tianshou 天授](https://baike.baidu.com/item/%E5%A4%A9%E6%8E%88) by THU Undergrads) may already take one whole year before you step to the finance problem. If that's what you actually looking for, I would suggest you to communicate with the prof ASAP and see how he or his PhD can help. You would be wasting time if you are playing it by yourself. 
 2. **DO NOT start with raw price and all-in/all-out strageties.** Many hello-world projects use such strategy but it is just useless. You will be wasting time trying to optimize it. 
 3. **Implementation of multiple-asset portfolio is different from single-asset portfolio.** The transaction phase is not the same. If you are only holding one asset, you just need to cash-out during rebalancing. However, if you are holding multiple assets with no cash on hand, you need to sell some in order to buy in others. It would be a bit harder to calculate the transaction fee. You should also consider the exchange rates if the prices are in different currencies. Details are in my report if you are interested.
 4. **Talk to Prof at least once per week.** Prof may or may not be able help you with the detailed implementation and codings, however, it would still be helpful to elaborate your ideas and check your progress. Go and ask for help immediately if you find yourself stuck in somewhere for more than 3 days (Learned during my internship, and the original threshold is "half a day" during work).
@@ -55,7 +55,7 @@ I didn't summarize all the dependencies, but generally the project requires:
 
 ### Main Projects
 
-The repo is quite messy as it is used for digging answers to the finance questions but not meant to nicely design a software system (I hate software engineering). Instead of encapsulating everything as the SE course teaches, I am coding the project in a straightforward manner so that it can be modified easilier. 
+The repo is quite messy as it is used for digging answers to the finance questions but not meant to nicely design a software system (I hate software engineering). Instead of encapsulating everything as the SE course teaches, I am coding the project in a straightforward manner so that it can be understood and modified a lot more easily. 
 
 The main program to train the reinforcement learning model is in `./from github/Stock-Trading-Environment/main.py` and `./from github/Stock-Trading-Environment/env/MonthlyRebalancingEnv.py`.
 
@@ -63,10 +63,10 @@ The massive testing program (generating the heatmap matrix in the last section o
 
 The main program, as the foler name `from github` suggests, is initially forked from Adam King's github. It would be easier to use his code to test your settings of dependencies. However, I forget to restructure the repo before it becomes too big to be reformat. Anyway it is just a one-year project and it is able to run during this year.
 
-The datas are .csv downloaded from yahoo finance and investing.com. You probably need to clean the data before feeding it to the model. This is done 
+The data are .csv downloaded from yahoo finance and investing.com. You probably need to clean the data before feeding it to the model. This is done in `CSVUtils.py`.
 
-The training result and output is saved by pickle in binary. 
+The training result and output is saved by `pickle` in binary. 
 
-The visualization part are all written in the Jupyter Notebook in the main folder. The names is quite straightforward and there are some sample outputs stored in the files as well. I would suggest you to rewrite the visualization for your own analysis.
+The visualization part are all written in the `Jupyter Notebook` in the main folder. The names is quite straightforward and there are some sample outputs stored in the files as well. However, I would suggest you to rewrite the visualization for your own analysis.
 
-I think I have put sufficient comments in the codes as I also forget what I was coding from time to time. 
+I think I have put sufficient comments in the codes as I also forget what I was coding from time to time. I won't be updating this project and the codes are provided "AS IS". All the best.
