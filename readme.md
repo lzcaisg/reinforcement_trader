@@ -13,6 +13,8 @@ If you are reading this documentation from the DropBox, you can visit the github
 
 The default branch is multiple-market-predictor.
 
+The reports are in `Report and Paper` folder.
+
 The opinions, conclusions and recommendations contained therein are for reference only and do not constitute investment advice of any kind at any time. Performance figures only stands for past performance. Past performance should not be used as a predictor of future returns. The author will not bear any legal responsibility for any consequences caused by following or using this project.
 
 ## Overview
