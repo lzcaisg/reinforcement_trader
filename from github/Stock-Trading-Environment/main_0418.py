@@ -63,7 +63,7 @@ def main(   TRAINING = True, SAVE_DIR = "./output/1000", DATE_PREFIX = "0418", V
         source, price_label = set_source_label(df_namelist[key], TRAIN_FOREX_ADJUST)
         
         df = csv2df(rootDir, fileName, source = source)
-        df = get_ta(df, price_label)
+        df = get_ta(df, price_label, ENV_PARAM)
 
         train_df = df[(df['Date'] >= trainStartDate) & (df['Date'] <= trainEndDate)]
         test_df  = df[(df['Date'] >= testStartDate)  & (df['Date'] <= testEndDate)]
@@ -168,7 +168,7 @@ def set_source_label(file_name, TRAIN_FOREX_ADJUST):
     return source, price_label
 
         
-def get_ta(df, price_label):
+def get_ta(df, price_label, ENV_PARAM):
     df = df.sort_values('Date').reset_index(drop=True)
     # Add TA Indicators
     # <1> EMA
@@ -199,7 +199,7 @@ def get_ta(df, price_label):
     df['RSI'] = ta.momentum.RSIIndicator(df[price_label], fillna=True).rsi() 
     df['RSI'] /= df[price_label][0]
 
-    roll_Max = df[price_label].rolling(window=30, min_periods=1).max()
+    roll_Max = df[price_label].rolling(window=ENV_PARAM['MDD_window'], min_periods=1).max()
     df['daily_Drawdown'] = df[price_label]/roll_Max - 1.0
 
     # Clean up all the nans
