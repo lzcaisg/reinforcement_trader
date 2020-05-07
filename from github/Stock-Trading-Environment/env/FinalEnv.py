@@ -30,7 +30,7 @@ DEFAULT_PARAMETER = {
 
 class RebalancingEnv(gym.Env):
 
-    def __init__(self, df_dict, col_list, env_param, isTraining=True):
+    def __init__(self, df_dict, col_list, env_param, startDate=None, endDate=None, isTraining=True):
         
         super(RebalancingEnv, self).__init__()
 
@@ -52,14 +52,25 @@ class RebalancingEnv(gym.Env):
         for key in df_dict:
             df = df_dict[key].dropna()      # Remove all NAN in the df
             self.intersect_dates = np.intersect1d(self.intersect_dates, df['Date'])
-        
-        self.start_date = np.min(self.intersect_dates)
-        self.end_date = np.max(self.intersect_dates)
 
         # 2. Add only the common dates
         for key in ['high', 'mid', 'low']:
             df = df_dict[key].dropna()
             self.df_list.append(df[df['Date'].isin(self.intersect_dates)].reset_index(drop=True))
+        
+        self.roughStartDate = startDate
+        self.roughEndDate = endDate
+        self.start_date = np.min(self.intersect_dates)
+        if not self.roughStartDate is None:       # start_date may not in intersect_dates
+            self.start_date = max(self.roughStartDate, self.start_date)
+        self.start_step = self.df_list[0].index[self.df_list[0]['Date'] >= self.start_date].tolist()[0]
+        
+
+        self.end_date = np.max(self.intersect_dates)
+        if not self.roughEndDate is None:
+            self.end_date = min(self.roughEndDate, self.end_date)
+        self.end_step = self.df_list[0].index[self.df_list[0]['Date'] <= self.end_date].tolist()[-1]
+        
 
         # 3. Action Space: [0,0,0,0]->[1,1,1,1]: Four Actions
         self.action_space = spaces.Box(
@@ -73,7 +84,7 @@ class RebalancingEnv(gym.Env):
             low=0, high=np.inf, shape=(len(self.obs_relative_steps), len(self.col_list)*2), dtype=np.float16)
 
 
-    def reset(self):
+    def reset(self, startDate=None, endDate=None):
         # Reset the state of the environment to an initial state
         
         '''We set the current step to a random point within the data frame, because it 
@@ -93,11 +104,21 @@ class RebalancingEnv(gym.Env):
             2:np.array([0.45, 0.45, 0.10]),
             3:np.array([0.10, 0.10, 0.80])
         }
+        
+        self.start_date = np.min(self.intersect_dates)
+        if not self.roughStartDate is None:       # start_date may not in intersect_dates
+            self.start_date = max(self.roughStartDate, self.start_date)
+        self.start_step = self.df_list[0].index[self.df_list[0]['Date'] >= self.start_date].tolist()[0]
+        
+        self.end_date = np.max(self.intersect_dates)
+        if not self.roughEndDate is None:
+            self.end_date = min(self.roughEndDate, self.end_date)
+        self.end_step = self.df_list[0].index[self.df_list[0]['Date'] <= self.end_date].tolist()[-1]
 
         self.total_net_worth = INITIAL_ACCOUNT_BALANCE
         self.prev_total_net_worth = INITIAL_ACCOUNT_BALANCE
         self.max_net_worth = INITIAL_ACCOUNT_BALANCE
-        self.current_step = 0
+        self.current_step = self.start_step
         self.zero_action_count = 0
         self.prev_buyNhold_balance = 0
         self.finished = False
@@ -122,7 +143,7 @@ class RebalancingEnv(gym.Env):
             rand_days = random.randint(self.window_size, days_range - 1)
             self.current_step = rand_days
         else:
-            self.current_step = self.window_size
+            self.current_step = self.start_step
 
         init_price = [df.loc[self.current_step, "Price"] for df in self.df_list]
         init_price = np.array(init_price, dtype=np.float64)
@@ -302,8 +323,7 @@ class RebalancingEnv(gym.Env):
         # Calculate Benchmark Performances
         # 1. Get the future price
         future_step = self.current_step+self.reward_wait
-        max_lenth = min([len(df['Actual Price']) for df in self.df_list])
-        future_step = min(future_step, max_lenth-1)
+        future_step = min(future_step, self.end_step-1)
         # future_price = [df.loc[future_step, "Price"] for df in self.df_list]
         future_price = []
 
@@ -395,7 +415,7 @@ class RebalancingEnv(gym.Env):
         
 
     def _update_current_step(self):
-        last_step = len(self.intersect_dates)-self.reward_wait-self.action_freq-1
+        last_step = self.end_step-self.reward_wait-self.action_freq-1
         if self.current_step >= last_step:
             if self.training:
                 self.current_step = self.window_size  # Going back to time 0

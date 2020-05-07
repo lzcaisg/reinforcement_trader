@@ -17,6 +17,7 @@ import pprint
 import os
 from os import path
 
+
 def main(   TRAINING = True, SAVE_DIR = "./output/1000", DATE_PREFIX = "0418", VAIRABLE_PREFIX = "action_frequency", 
             DF_NAMELIST=None, TRAIN_TEST_DATE=None, TRAIN_FOREX_ADJUST=True, TSTEP_LIST = [200000], 
             LOAD_DIR = "./output/306", MODEL_FILE_PREFIX = "BRZ_TW_NASDAQ-Selected_Trans-withleakage+RSI-200000-",
@@ -153,6 +154,130 @@ def main(   TRAINING = True, SAVE_DIR = "./output/1000", DATE_PREFIX = "0418", V
             pickle.dump(final_result, open(path.join(SAVE_DIR, summary_fileName), "wb"))
             print("********* LENTH: ", len(final_result), " *********")
             pprint.pprint (final_result[-1])
+
+def manytest(freq_dict, dir_dict, threshold_list, DATE_PREFIX="0418",
+            startyear=2000, endyear=2019, SAVE_DIR_PREFIX="./output/",
+            LOAD_DIR = "./output/306", MODEL_FILE_PREFIX = "BRZ_TW_NASDAQ-Selected_Trans-withleakage+RSI-200000-"):
+    ENV_PARAM = {}
+    # Set Default Values
+    for key in DEFAULT_PARAMETER:
+        if (not key in ENV_PARAM.keys()) or (not type(ENV_PARAM[key]) is type(DEFAULT_PARAMETER[key])):
+            ENV_PARAM[key] = DEFAULT_PARAMETER[key]
+
+    testEnvSettings = getTestEnvSettings()
+    model_list = []
+    for i in range(10):
+        model_name = MODEL_FILE_PREFIX+str(i) + "-model.model"
+        model = PPO2.load(path.join(LOAD_DIR, model_name))
+        model_list.append(model)
+
+    for freq in dir_dict:
+        SAVE_DIR = "./output/"+dir_dict[freq]
+        ENV_PARAM['SAVE_DIR'] = SAVE_DIR
+        if not os.path.exists(SAVE_DIR):
+            os.makedirs(SAVE_DIR)
+        for thres in threshold_list:
+            ENV_PARAM['MDD_window'] = freq_dict[freq]
+            ENV_PARAM['MDD_threshold'] = thres
+            
+            testEnv = DummyVecEnv([lambda: RebalancingEnv(
+                df_dict=testEnvSettings["df_dict"], col_list=testEnvSettings["col_list"], 
+                isTraining=False, env_param=ENV_PARAM)])
+
+            for start in range(startyear, endyear-3):
+                testStartDate = pd.to_datetime(str(start)+"-01-01")
+                ENV_PARAM['testStartDate'] = testStartDate
+                for end in range(start+4, endyear+1):
+                    print("@@@@@@@@@@@@@@@@@@@", thres, freq, start, end, "@@@@@@@@@@@@@@@@@@@")
+                    testEndDate = pd.to_datetime(str(end)+ "-12-31")
+                    testEnv.set_attr("roughStartDate", testStartDate)
+                    testEnv.set_attr("roughEndDate", testEndDate)
+                    testEnv.reset()
+                    
+                    VAIRABLE_PREFIX = "TEST_"+("%.2f"%thres)+"_"+freq+"Crisis_"+str(start)+"_"+str(end)
+                    common_fileName_prefix = DATE_PREFIX+"-"+VAIRABLE_PREFIX+"-"
+                    summary_fileName_suffix = "summary-X.out"
+                    detail_fileName_suffix = "detailed-ModelNo_X.out"
+
+                    detail_fileName_model = common_fileName_prefix+'-'+detail_fileName_suffix
+                    summary_fileName_model = common_fileName_prefix+'-'+summary_fileName_suffix
+
+                    for modelNo in range(10):
+                        model = model_list[modelNo]
+                        profit_list = []
+                        act_profit_list = []
+                        detail_list = []
+                        print("\n============= START TESTING "+str(modelNo)+" =============\n")
+                        obs = testEnv.reset()
+                        final_result=[]
+                        tstep=200000
+                        for testNo in range((testEndDate-testStartDate).days):      # Set index number of date as TestNo
+                            action, _states = model.predict(obs)
+                            if np.isnan(action).any():
+                                print(testNo)
+                            obs, rewards, done, info = testEnv.step(action)
+                            if done:
+                                print("Done")
+                                break
+                            profit_list.append(info[0]['profit'])
+                            act_profit_list.append(info[0]['actual_profit'])
+                            singleDay_record = testEnv.render(mode="detail")
+                            singleDay_record['testNo'] = testNo
+                            singleDay_record['rewards'] = rewards[0]
+                            detail_list.append(singleDay_record)
+
+                            if testNo%365 == 0:
+                                print("\n======= TESTING "+str(testNo)+" =======")
+                                testEnv.render()
+
+                        detail_fileName = detail_fileName_model[:-5] + str(tstep) + '-' +str(modelNo) + detail_fileName_model[-4:]
+                        pickle.dump(detail_list, open(path.join(SAVE_DIR, detail_fileName), "wb"))
+
+                        final_result.append({
+                            # "trainStart": trainStartDate,
+                            # "trainEnd": trainEndDate,
+                            "testStart": testStartDate,
+                            "testEnd": testEndDate,
+                            "train_step": tstep,
+                            "mean": np.mean(profit_list),
+                            "max": np.max(profit_list),
+                            "min": np.min(profit_list),
+                            "std": np.std(profit_list),
+                            "final": profit_list[-1],
+                            "act_mean": np.mean(act_profit_list),
+                            "act_max": np.max(act_profit_list),
+                            "act_min": np.min(act_profit_list),
+                            "act_std": np.std(act_profit_list),
+                            "act_final": act_profit_list[-1],
+                            "total_shares_sold": info[0]['total_shares_sold']
+                        })
+
+                        summary_fileName = summary_fileName_model[:-5] +str(tstep) + ".out"
+                        pickle.dump(final_result, open(path.join(SAVE_DIR, summary_fileName), "wb"))
+                        print("********* LENTH: ", len(final_result), " *********")
+                        pprint.pprint (final_result[-1])
+
+def getTestEnvSettings():
+    df_namelist = {"high": "^BVSP_new", "mid": "^TWII_new", "low": "^IXIC_new"}
+    rootDir = "./data"
+    test_df_dict = {"high": pd.DataFrame(), "mid": pd.DataFrame(), "low": pd.DataFrame()}
+
+    for key in df_namelist:
+        fileName = df_namelist[key]+".csv"
+
+        source, price_label = set_source_label(df_namelist[key], TRAIN_FOREX_ADJUST=True)
+
+        df = csv2df(rootDir, fileName, source = source)
+        df = get_ta(df, price_label)
+        test_df_dict[key]  = df
+
+    col_list = ['EMA', 'MACD_diff', 'delta_time', 'RSI', 'Cum FX Change']
+    settings={
+        "df_dict":test_df_dict,
+        "col_list":col_list,
+        "isTraining":False
+    }
+    return settings
 
 
 def set_source_label(file_name, TRAIN_FOREX_ADJUST):
