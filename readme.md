@@ -11,6 +11,8 @@ The massive testing program (generating the heatmap matrix in the last section o
 
 If you are reading this documentation from the DropBox, you can visit the github repo of the project to check the full version, or if necessary, to check the editing history (although I highly not recommand to do so). The github repo is at [the address](https://github.com/lzcaisg/reinforcement_trader).
 
+The default branch is multiple-market-predictor.
+
 The opinions, conclusions and recommendations contained therein are for reference only and do not constitute investment advice of any kind at any time. Performance figures only stands for past performance. Past performance should not be used as a predictor of future returns. The author will not bear any legal responsibility for any consequences caused by following or use this project.
 
 ## Overview
