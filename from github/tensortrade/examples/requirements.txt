@@ -2,7 +2,7 @@
 
 bokeh
 ipywidgets
-tensorflow==1.15.2
+tensorflow==2.3.1
 tensorforce==0.5.2
 stable-baselines==2.8.0
 mpi4py
