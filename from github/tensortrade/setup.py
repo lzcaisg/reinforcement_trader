@@ -49,7 +49,7 @@ setup(
         'numpy==1.16.4',
         'pandas==0.25.0',
         'gym==0.14.0',
-        'pyyaml==5.1.2',
+        'pyyaml==5.4',
         'sympy==1.4'
     ],
     extras_require={
